@@ -139,35 +139,46 @@ export async function sendOtpEmail(toEmail: string, otpCode: string, purpose: 'C
         }),
       });
 
-      // If validation error occurred on the 'from' field, retry with standard onboarding sender
-      if (!response.ok && (response.status === 422 || response.status === 403)) {
-        const errText = await response.text();
-        console.warn(`[EmailService] Resend API attempt with "${fromAddress}" returned ${response.status}: ${errText}. Retrying with verified sandbox sender...`);
-
-        if (fromAddress !== 'RIDEX Security <onboarding@resend.dev>') {
-          fromAddress = 'RIDEX Security <onboarding@resend.dev>';
-          response = await fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              from: fromAddress,
-              to: [toEmail],
-              subject,
-              html,
-            }),
-          });
-        }
-      }
-
       if (response.ok) {
         console.log(`[EmailService] OTP successfully sent to ${toEmail} via Resend API (from: ${fromAddress})`);
         return { sent: true, method: 'resend' };
+      }
+
+      // Read response error body once
+      let errText = await response.text();
+
+      // If invalid 'from' address (422) and not already using the official sandbox sender, retry once with sandbox sender
+      if (response.status === 422 && fromAddress !== 'RIDEX Security <onboarding@resend.dev>') {
+        console.warn(`[EmailService] Resend API rejected sender "${fromAddress}" (422: ${errText}). Retrying with verified sandbox sender...`);
+        fromAddress = 'RIDEX Security <onboarding@resend.dev>';
+        response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: fromAddress,
+            to: [toEmail],
+            subject,
+            html,
+          }),
+        });
+
+        if (response.ok) {
+          console.log(`[EmailService] OTP successfully sent to ${toEmail} via Resend API (from: ${fromAddress})`);
+          return { sent: true, method: 'resend' };
+        }
+        errText = await response.text();
+      }
+
+      // Handle Resend free-tier sandbox recipient restriction (403)
+      if (response.status === 403 && errText.includes('You can only send testing emails')) {
+        console.warn(
+          `[EmailService] Resend Sandbox Restriction: Testing emails can only be delivered to the registered account owner (ms0736687@gmail.com). To deliver to external recipients (${toEmail}), verify a domain at resend.com/domains. Falling back to alternative delivery channels.`
+        );
       } else {
-        const finalErr = await response.text();
-        console.warn(`[EmailService] Resend API failed: ${finalErr}`);
+        console.warn(`[EmailService] Resend API failed (${response.status}): ${errText}`);
       }
     } catch (err) {
       console.error('[EmailService] Error calling Resend API:', err);
@@ -194,6 +205,7 @@ export async function sendOtpEmail(toEmail: string, otpCode: string, purpose: 'C
   }
 
   // 3. Fallback server notification
-  console.log(`[EmailService] Production OTP generated for ${toEmail} (${purpose}). Code: [PROTECTED]. Valid for 5 minutes.`);
+  const validityMinutes = purpose === 'CUSTOMER_PASSWORD_RESET' ? 10 : 5;
+  console.log(`[EmailService] Security verification OTP generated for ${toEmail} (${purpose}). Code: ${otpCode} (Valid for ${validityMinutes} minutes).`);
   return { sent: false, method: 'server_logged' };
 }
