@@ -1,0 +1,32 @@
+# ====================================================================
+# Hostinger / Apache Web Server Configuration for Vite + React SPA
+# ====================================================================
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # 1. Do NOT rewrite API routes to index.html
+  # If a backend is running, pass through or handle separately
+  RewriteCond %{REQUEST_URI} ^/api(/.*)?$ [NC]
+  RewriteRule ^ - [L]
+
+  # 2. Existing files and directories serve directly
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # 3. SPA Fallback: Route all client routes to index.html
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# Prevent directory indexing
+Options -Indexes
+
+# Security Headers
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-Frame-Options "SAMEORIGIN"
+  Header set X-XSS-Protection "1; mode=block"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>

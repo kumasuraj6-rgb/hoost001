@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { useFirebase } from '../../context/FirebaseContext';
+import { safeFetchJson } from '../../utils/apiClient';
 
 interface CustomerLoginModalProps {
   isOpen: boolean;

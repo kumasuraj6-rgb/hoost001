@@ -204,6 +204,27 @@ export function isAuthorizedAdminRequest(req: http.IncomingMessage): boolean {
   return isAuthorizedAdmin(req);
 }
 
+// Cryptographically secure password hashing (PBKDF2 with salt)
+export function hashPassword(password: string): string {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+  return `pbkdf2$${salt}$${hash}`;
+}
+
+// Secure password comparison supporting both pbkdf2 and legacy credentials
+export function verifyPassword(provided: string, stored: string): boolean {
+  if (!stored || !provided) return false;
+  if (stored.startsWith('pbkdf2$')) {
+    const parts = stored.split('$');
+    if (parts.length < 3) return false;
+    const salt = parts[1];
+    const hash = parts[2];
+    const computed = crypto.pbkdf2Sync(provided, salt, 10000, 64, 'sha512').toString('hex');
+    return computed === hash;
+  }
+  return provided === stored;
+}
+
 function writeJsonFile<T>(filePath: string, data: T) {
   ensureDataDir();
   try {
@@ -389,8 +410,16 @@ export async function handleApiRequest(
   res: http.ServerResponse
 ): Promise<boolean> {
   const parsedUrl = new URL(req.url || '/', 'http://localhost:3000');
-  const pathname = parsedUrl.pathname;
+  let pathname = parsedUrl.pathname;
+  if (pathname.length > 1 && pathname.endsWith('/')) {
+    pathname = pathname.slice(0, -1);
+  }
   const method = (req.method || 'GET').toUpperCase();
+
+  if (pathname === '/api') {
+    sendJson(res, 200, { status: 'ok', service: 'RIDEX Moto API Gateway', time: new Date().toISOString() });
+    return true;
+  }
 
   if (!pathname.startsWith('/api/')) {
     return false;
@@ -621,9 +650,9 @@ export async function handleApiRequest(
             return true;
           }
         } else {
-          // Verify customer password
+          // Verify customer password supporting both secure hash and legacy credentials
           const expectedPassword = customer.password;
-          if (!expectedPassword || password !== expectedPassword) {
+          if (!expectedPassword || !verifyPassword(password, expectedPassword)) {
             sendJson(res, 401, {
               success: false,
               error: 'Incorrect password. Please verify your password or use "Forgot Password" to reset via OTP.',
@@ -690,7 +719,7 @@ export async function handleApiRequest(
         id: `cust-${Date.now()}`,
         name,
         email,
-        password,
+        password: hashPassword(password),
         phone,
         addresses: [],
         totalOrders: 0,
@@ -728,10 +757,17 @@ export async function handleApiRequest(
   // ====================================================
 
   // 1. Customer Forgot Password: Generate & Send 6-digit OTP
-  if (
-    (pathname === '/api/auth/customer/forgot-password' || pathname === '/api/auth/forgot-password/send-otp') &&
-    method === 'POST'
-  ) {
+  const isCustomerForgotOtpRoute =
+    (pathname === '/api/auth/customer/forgot-password' ||
+      pathname === '/api/auth/forgot-password/send-otp' ||
+      pathname === '/api/auth/forgot-password' ||
+      pathname === '/api/forgot-password' ||
+      pathname === '/api/customer/forgot-password' ||
+      pathname === '/api/auth/customer/send-otp' ||
+      pathname === '/api/auth/send-otp') &&
+    method === 'POST';
+
+  if (isCustomerForgotOtpRoute) {
     try {
       const body = await parseJsonBody(req);
       const email = (body.email || '').trim().toLowerCase();
@@ -741,7 +777,8 @@ export async function handleApiRequest(
         return true;
       }
 
-      // Customer account lookup: only registered customers can reset customer password
+      // Customer account lookup: always refresh from disk to guarantee latest registrations
+      customers = readJsonFile(CUSTOMERS_FILE, customers);
       const customer = customers.find((c: any) => c.email && c.email.toLowerCase() === email);
       if (!customer) {
         sendJson(res, 404, {
@@ -804,10 +841,17 @@ export async function handleApiRequest(
   }
 
   // 2. Customer OTP Verification: Verify 6-digit code and issue reset token
-  if (
-    (pathname === '/api/auth/customer/verify-reset-otp' || pathname === '/api/auth/forgot-password/verify-code') &&
-    method === 'POST'
-  ) {
+  const isCustomerVerifyOtpRoute =
+    (pathname === '/api/auth/customer/verify-reset-otp' ||
+      pathname === '/api/auth/forgot-password/verify-code' ||
+      pathname === '/api/auth/customer/verify-otp' ||
+      pathname === '/api/auth/verify-otp' ||
+      pathname === '/api/verify-otp' ||
+      pathname === '/api/forgot-password/verify-otp' ||
+      pathname === '/api/customer/verify-reset-otp') &&
+    method === 'POST';
+
+  if (isCustomerVerifyOtpRoute) {
     try {
       const body = await parseJsonBody(req);
       const email = (body.email || '').trim().toLowerCase();
@@ -880,10 +924,15 @@ export async function handleApiRequest(
   }
 
   // 3. Customer Password Reset: Update customer password with verified token
-  if (
-    (pathname === '/api/auth/customer/reset-password' || pathname === '/api/auth/forgot-password/verify-otp') &&
-    method === 'POST'
-  ) {
+  const isCustomerResetPasswordRoute =
+    (pathname === '/api/auth/customer/reset-password' ||
+      pathname === '/api/auth/forgot-password/verify-otp' ||
+      pathname === '/api/auth/reset-password' ||
+      pathname === '/api/reset-password' ||
+      pathname === '/api/customer/reset-password') &&
+    method === 'POST';
+
+  if (isCustomerResetPasswordRoute) {
     try {
       const body = await parseJsonBody(req);
       const email = (body.email || '').trim().toLowerCase();
@@ -946,15 +995,17 @@ export async function handleApiRequest(
       forgotPasswordOtpStore.delete(email);
 
       // Strictly update CUSTOMER password only (never touches Admin accounts)
+      customers = readJsonFile(CUSTOMERS_FILE, customers);
+      const hashedPassword = hashPassword(newPassword);
       let customer = customers.find((c: any) => c.email && c.email.toLowerCase() === email);
       if (customer) {
-        customer.password = newPassword;
+        customer.password = hashedPassword;
       } else {
         customer = {
           id: `cust-${Date.now()}`,
           name: email.split('@')[0],
           email,
-          password: newPassword,
+          password: hashedPassword,
           phone: '+91 98765 43210',
           addresses: [],
           totalOrders: 0,

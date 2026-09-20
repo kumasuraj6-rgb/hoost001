@@ -5,23 +5,37 @@ import {defineConfig, Plugin} from 'vite';
 import {handleApiRequest} from './src/server/apiHandler';
 
 function apiServerPlugin(): Plugin {
+  const middleware = async (req: any, res: any, next: any) => {
+    const url = req.url || '';
+    if (url.startsWith('/api/') || url === '/api' || url.startsWith('/api?')) {
+      try {
+        const handled = await handleApiRequest(req, res);
+        if (handled) return;
+        // Never fall through to Vite SPA html fallback for /api routes
+        res.statusCode = 404;
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Cache-Control', 'no-store');
+        res.end(JSON.stringify({ success: false, error: `API endpoint ${url} not found` }));
+        return;
+      } catch (err: any) {
+        console.error('API middleware error:', err);
+        res.statusCode = 500;
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Cache-Control', 'no-store');
+        res.end(JSON.stringify({ success: false, error: err?.message || 'Internal API error' }));
+        return;
+      }
+    }
+    next();
+  };
+
   return {
     name: 'api-server-plugin',
     configureServer(server) {
-      server.middlewares.use(async (req, res, next) => {
-        if (req.url && req.url.startsWith('/api/')) {
-          try {
-            const handled = await handleApiRequest(req, res);
-            if (handled) return;
-          } catch (err) {
-            console.error('API middleware error:', err);
-            res.statusCode = 500;
-            res.end(JSON.stringify({ error: 'Internal API error' }));
-            return;
-          }
-        }
-        next();
-      });
+      server.middlewares.use(middleware);
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(middleware);
     },
   };
 }
