@@ -1,0 +1,101 @@
+[
+  {
+    "id": "cust-0",
+    "name": "Vikramaditya Rathore",
+    "email": "customer@ridex.com",
+    "password": "RiderPass2026",
+    "phone": "+91 98201 44521",
+    "addresses": [
+      {
+        "id": "addr-0",
+        "name": "Vikramaditya Rathore",
+        "phone": "+91 98201 44521",
+        "street": "Flat 402, Oakwood Enclave, Indiranagar 100ft Road",
+        "landmark": "Near Domlur Flyover",
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "pincode": "560038",
+        "isDefault": true
+      }
+    ],
+    "registrationDate": "2026-01-12T10:00:00Z",
+    "totalOrders": 3,
+    "totalSpent": 26497,
+    "lastOrderDate": "2026-03-02T14:30:00Z",
+    "status": "ACTIVE"
+  },
+  {
+    "id": "cust-1",
+    "name": "Vikramaditya Rathore",
+    "email": "vikram.rider@example.com",
+    "password": "RiderPass2026",
+    "phone": "+91 98201 44521",
+    "addresses": [
+      {
+        "id": "addr-1",
+        "name": "Vikramaditya Rathore",
+        "phone": "+91 98201 44521",
+        "street": "Flat 402, Oakwood Enclave, Indiranagar 100ft Road",
+        "landmark": "Near Domlur Flyover",
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "pincode": "560038",
+        "isDefault": true
+      }
+    ],
+    "registrationDate": "2026-01-12T10:00:00Z",
+    "totalOrders": 3,
+    "totalSpent": 26497,
+    "lastOrderDate": "2026-03-02T14:30:00Z",
+    "status": "ACTIVE"
+  },
+  {
+    "id": "cust-2",
+    "name": "Ananya Deshmukh",
+    "email": "ananya.moto@example.com",
+    "password": "RiderPass2026",
+    "phone": "+91 97114 88203",
+    "addresses": [
+      {
+        "id": "addr-2",
+        "name": "Ananya Deshmukh",
+        "phone": "+91 97114 88203",
+        "street": "Bungalow 7, Koregaon Park Lane 5",
+        "landmark": "Opposite German Bakery",
+        "city": "Pune",
+        "state": "Maharashtra",
+        "pincode": "411001",
+        "isDefault": true
+      }
+    ],
+    "registrationDate": "2026-01-28T16:00:00Z",
+    "totalOrders": 2,
+    "totalSpent": 12498,
+    "lastOrderDate": "2026-02-28T09:15:00Z",
+    "status": "ACTIVE"
+  },
+  {
+    "id": "cust-3",
+    "name": "Rohan Sen",
+    "email": "rohan.touring@example.com",
+    "password": "RiderPass2026",
+    "phone": "+91 99032 11984",
+    "addresses": [
+      {
+        "id": "addr-3",
+        "name": "Rohan Sen",
+        "phone": "+91 99032 11984",
+        "street": "Tower 3, Apt 14B, South City Residency",
+        "city": "Kolkata",
+        "state": "West Bengal",
+        "pincode": "700068",
+        "isDefault": true
+      }
+    ],
+    "registrationDate": "2026-02-05T11:00:00Z",
+    "totalOrders": 1,
+    "totalSpent": 4499,
+    "lastOrderDate": "2026-02-24T18:00:00Z",
+    "status": "ACTIVE"
+  }
+]

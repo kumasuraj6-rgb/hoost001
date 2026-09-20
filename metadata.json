@@ -1,0 +1,6 @@
+{
+  "name": "RIDEX — Premium Riding Gear & Touring Equipment",
+  "description": "Production-grade e-commerce platform for premium motorcycle riding gear, rain protection suits, and touring luggage with complete store & inventory management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

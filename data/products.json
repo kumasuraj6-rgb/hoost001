@@ -1,0 +1,724 @@
+[
+  {
+    "id": "prod-1",
+    "name": "TANK BAG",
+    "sku": "TABK BAG",
+    "brand": "Truerider India",
+    "category": "Tank Bags",
+    "subcategory": "Touring & Adventure",
+    "description": "CYCLONE TANK BGA 25L WITH MEGNET US BY BACKPACK",
+    "price": 2400,
+    "originalPrice": 5000,
+    "discountPercentage": 52,
+    "gstPercentage": 18,
+    "stock": 42,
+    "lowStockThreshold": 10,
+    "sizes": [
+      "5LTR",
+      "2LT"
+    ],
+    "colors": [
+      "Stealth Black",
+      "Titanium Grey",
+      "Hi-Viz Neon"
+    ],
+    "colorVariants": [
+      {
+        "id": "cv-1-black",
+        "colorName": "Stealth Black",
+        "colorHex": "#18181b",
+        "images": [
+          {
+            "id": "cimg-1789230654157",
+            "url": "/api/uploads/prod-cv-prod-1-1789231150674-9e5snr.jpg",
+            "alt": "Stealth Black photo"
+          },
+          {
+            "id": "cimg-1789230680903",
+            "url": "/api/uploads/prod-cv-prod-1-1789231150679-yiwjzx.jpg",
+            "alt": "Stealth Black photo"
+          },
+          {
+            "id": "cimg-1789230688523",
+            "url": "/api/uploads/prod-cv-prod-1-1789231150680-d0j793.jpg",
+            "alt": "Stealth Black photo"
+          }
+        ]
+      },
+      {
+        "id": "cv-1-grey",
+        "colorName": "Titanium Grey",
+        "colorHex": "#64748b",
+        "images": [
+          {
+            "id": "cimg-1789230707645",
+            "url": "/api/uploads/prod-cv-prod-1-1789231150685-kril40.jpg",
+            "alt": "Titanium Grey photo"
+          },
+          {
+            "id": "cimg-1789230707645",
+            "url": "/api/uploads/prod-cv-prod-1-1789231150690-hkt44u.jpg",
+            "alt": "Titanium Grey photo"
+          }
+        ]
+      },
+      {
+        "id": "cv-1-neon",
+        "colorName": "Hi-Viz Neon",
+        "colorHex": "#eab308",
+        "images": [
+          {
+            "id": "cimg-1789230719905",
+            "url": "/api/uploads/prod-cv-prod-1-1789231150694-ml0sh9.jpg",
+            "alt": "Hi-Viz Neon photo"
+          },
+          {
+            "id": "cimg-1789230719905",
+            "url": "/api/uploads/prod-cv-prod-1-1789231150699-yu68w8.jpg",
+            "alt": "Hi-Viz Neon photo"
+          }
+        ]
+      }
+    ],
+    "masterImages": [
+      {
+        "id": "img-1-master",
+        "url": "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=800&q=80",
+        "alt": "AeroTour Riding Jacket Master",
+        "isPrimary": true
+      }
+    ],
+    "material": "Cordura 600D Ballistic Nylon + 3D Mesh Breathable Panels",
+    "specifications": {
+      "Armor Standard": "CE EN1621-1 Level 2 (Shoulder/Elbow) & EN1621-2 Level 2 (Back)",
+      "Weather Protection": "Reissa 10,000mm Waterproof Membrane + Quilted Winter Liner",
+      "Zippers": "Genuine YKK Heavy-Duty Automotive Grade",
+      "Reflective": "3M Scotchlite 500cd/lux visibility trims",
+      "Ventilation": "Dual chest scoop vents and full-length back exhaust vent"
+    },
+    "features": [],
+    "armorLevel": "None",
+    "waterproofRating": "10,000 mm H2O with taped seams",
+    "tags": [
+      "Touring",
+      "CE Level 2",
+      "All Weather",
+      "Cordura",
+      "Jacket"
+    ],
+    "seoTitle": "AeroTour CE Level 2 Motorcycle Riding Jacket | Ridex Moto India",
+    "seoDescription": "Buy certified all-weather motorcycle riding jacket with Knox CE Level 2 armor, thermal and rain liners.",
+    "status": "ACTIVE",
+    "rating": 4.8,
+    "reviewCount": 148,
+    "isFeatured": true,
+    "isBestSeller": true,
+    "createdAt": "2026-01-15T10:00:00Z",
+    "updatedAt": "2026-09-12T16:35:55.262Z"
+  },
+  {
+    "id": "prod-2",
+    "name": "ProGrip Carbon Armored Leather Gloves",
+    "sku": "RDX-GLV-PG8",
+    "brand": "RIDEX MOTO",
+    "category": "Riding Gloves",
+    "subcategory": "Street & Track",
+    "description": "Full-grain goat leather pre-curved gloves with aerospace-grade carbon fiber knuckle protectors, palm scaphoid sliders, and touch-screen capacitive fingertips on index and thumb.",
+    "price": 3499,
+    "originalPrice": 4299,
+    "discountPercentage": 19,
+    "gstPercentage": 18,
+    "stock": 65,
+    "lowStockThreshold": 12,
+    "sizes": [
+      "M",
+      "L",
+      "XL",
+      "2XL"
+    ],
+    "colors": [
+      "Carbon Black",
+      "Racing Red"
+    ],
+    "colorVariants": [
+      {
+        "id": "cv-2-black",
+        "colorName": "Carbon Black",
+        "colorHex": "#09090b",
+        "images": [
+          {
+            "id": "img-2-1",
+            "url": "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80",
+            "alt": "ProGrip Carbon Black Top View",
+            "isPrimary": true
+          },
+          {
+            "id": "img-2-2",
+            "url": "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=800&q=80",
+            "alt": "ProGrip Carbon Black Palm & Slider View"
+          }
+        ]
+      },
+      {
+        "id": "cv-2-red",
+        "colorName": "Racing Red",
+        "colorHex": "#dc2626",
+        "images": [
+          {
+            "id": "img-2-3",
+            "url": "https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?auto=format&fit=crop&w=800&q=80",
+            "alt": "ProGrip Racing Red Top View",
+            "isPrimary": true
+          }
+        ]
+      }
+    ],
+    "masterImages": [
+      {
+        "id": "img-2-master",
+        "url": "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80",
+        "alt": "ProGrip Carbon Leather Gloves",
+        "isPrimary": true
+      }
+    ],
+    "material": "0.9mm Supple Drum-Dyed Goat Leather + Real Carbon Fiber Inserts",
+    "specifications": {
+      "Knuckles": "Hard Molded Carbon Fiber Impact Shell",
+      "Palm": "SuperFabric Abrasion Resistant Scaphoid Slider",
+      "Certification": "CE EN 13594:2015 KP1 Standard",
+      "Features": "Smartouch mobile friendly fingertip embroidery"
+    },
+    "features": [
+      "Pre-curved ergonomic race contour reducing wrist fatigue",
+      "Perforated leather between fingers for continuous cooling air flow",
+      "Dual Velcro wrist closure to prevent glove slippage during sliding",
+      "Little finger bridge to prevent hyper-extension during crashes"
+    ],
+    "armorLevel": "CE Level 1",
+    "tags": [
+      "Gloves",
+      "Leather",
+      "Carbon Fiber",
+      "Touchscreen"
+    ],
+    "status": "ACTIVE",
+    "rating": 4.9,
+    "reviewCount": 92,
+    "isFeatured": true,
+    "isNewArrival": true,
+    "createdAt": "2026-02-01T12:00:00Z",
+    "updatedAt": "2026-03-05T12:00:00Z"
+  },
+  {
+    "id": "prod-3",
+    "name": "AquaShield Pro Heavy Duty Full Rain Suit",
+    "sku": "RDX-RAIN-FS1",
+    "brand": "RIDEX MOTO",
+    "category": "Full Rain Suits",
+    "subcategory": "Monsoon Protection",
+    "description": "Engineered specifically for highway downpours. Constructed from 190T Ripstop Nylon with PU coating, boasting a 15,000mm hydrostatic head rating. Dual-flap storm zipper closure, sealed hot-melt seams, and integrated boot gaiters.",
+    "price": 2799,
+    "originalPrice": 3499,
+    "discountPercentage": 20,
+    "gstPercentage": 18,
+    "stock": 80,
+    "lowStockThreshold": 15,
+    "sizes": [
+      "M",
+      "L",
+      "XL",
+      "2XL",
+      "3XL"
+    ],
+    "colors": [
+      "Neon Rain Guard",
+      "Stealth Charcoal"
+    ],
+    "colorVariants": [
+      {
+        "id": "cv-3-neon",
+        "colorName": "Neon Rain Guard",
+        "colorHex": "#84cc16",
+        "images": [
+          {
+            "id": "img-3-1",
+            "url": "https://images.unsplash.com/photo-1544441893-675973e31985?auto=format&fit=crop&w=800&q=80",
+            "alt": "AquaShield Pro Neon Rain Suit",
+            "isPrimary": true
+          },
+          {
+            "id": "img-3-2",
+            "url": "https://images.unsplash.com/photo-1516257984-b1b4d707412e?auto=format&fit=crop&w=800&q=80",
+            "alt": "AquaShield Pro Seam Sealed Detail"
+          }
+        ]
+      },
+      {
+        "id": "cv-3-charcoal",
+        "colorName": "Stealth Charcoal",
+        "colorHex": "#334155",
+        "images": [
+          {
+            "id": "img-3-3",
+            "url": "https://images.unsplash.com/photo-1520975954732-35dd22299614?auto=format&fit=crop&w=800&q=80",
+            "alt": "AquaShield Pro Stealth Charcoal Rain Suit",
+            "isPrimary": true
+          }
+        ]
+      }
+    ],
+    "masterImages": [
+      {
+        "id": "img-3-master",
+        "url": "https://images.unsplash.com/photo-1544441893-675973e31985?auto=format&fit=crop&w=800&q=80",
+        "alt": "AquaShield Rain Suit Master",
+        "isPrimary": true
+      }
+    ],
+    "material": "190T Heavy Ripstop Nylon with 15,000mm PU Waterproof Barrier",
+    "specifications": {
+      "Waterproof Rating": "15,000 mm H2O hydrostatic pressure head",
+      "Seams": "German hot-melt adhesive welded tape",
+      "Closure": "Triple barrier storm flap with heavy Velcro fastening",
+      "Visibility": "360-degree fluorescent retro-reflective bands"
+    },
+    "features": [
+      "Tailored fit to comfortably slide over bulky armored jackets and pants",
+      "Dual waterproof chest pockets for dry wallet and phone storage",
+      "Integrated stirrups and adjustable ankle gussets prevent water splash-up",
+      "Compact breathable compression pouch included for effortless packing"
+    ],
+    "waterproofRating": "15,000 mm H2O (100% Monsoon Proof)",
+    "tags": [
+      "Rain Gear",
+      "Rain Suit",
+      "Monsoon",
+      "Waterproof",
+      "Reflective"
+    ],
+    "status": "ACTIVE",
+    "rating": 4.7,
+    "reviewCount": 110,
+    "isFeatured": true,
+    "isBestSeller": true,
+    "createdAt": "2026-01-20T08:00:00Z",
+    "updatedAt": "2026-03-02T08:00:00Z"
+  },
+  {
+    "id": "prod-4",
+    "name": "Expedition 60L Roll-Top Waterproof Tail Bag",
+    "sku": "RDX-LUG-TB60",
+    "brand": "RIDEX MOTO",
+    "category": "Tail Bags",
+    "subcategory": "Touring Luggage",
+    "description": "Universal 60-litre dry-duffel tail bag engineered with 500D PVC Tarpaulin and seamless electro-welded technology. Includes 4 quick-release universal mounting straps with alloy cam buckles for rock-solid pillion seat or luggage rack mounting.",
+    "price": 4499,
+    "originalPrice": 5999,
+    "discountPercentage": 25,
+    "gstPercentage": 18,
+    "stock": 35,
+    "lowStockThreshold": 8,
+    "sizes": [
+      "60 Litres"
+    ],
+    "colors": [
+      "Desert Tan",
+      "Matte Black",
+      "Expedition Yellow"
+    ],
+    "colorVariants": [
+      {
+        "id": "cv-4-tan",
+        "colorName": "Desert Tan",
+        "colorHex": "#d97706",
+        "images": [
+          {
+            "id": "img-4-1",
+            "url": "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=800&q=80",
+            "alt": "Expedition 60L Tail Bag Desert Tan",
+            "isPrimary": true
+          },
+          {
+            "id": "img-4-2",
+            "url": "https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?auto=format&fit=crop&w=800&q=80",
+            "alt": "Expedition 60L Mounting Straps and Tie Downs"
+          }
+        ]
+      },
+      {
+        "id": "cv-4-black",
+        "colorName": "Matte Black",
+        "colorHex": "#1c1917",
+        "images": [
+          {
+            "id": "img-4-3",
+            "url": "https://images.unsplash.com/photo-1547949003-9792a18a2601?auto=format&fit=crop&w=800&q=80",
+            "alt": "Expedition 60L Matte Black Tail Bag",
+            "isPrimary": true
+          }
+        ]
+      },
+      {
+        "id": "cv-4-yellow",
+        "colorName": "Expedition Yellow",
+        "colorHex": "#eab308",
+        "images": [
+          {
+            "id": "img-4-4",
+            "url": "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=800&q=80",
+            "alt": "Expedition 60L High Visibility Yellow",
+            "isPrimary": true
+          }
+        ]
+      }
+    ],
+    "masterImages": [
+      {
+        "id": "img-4-master",
+        "url": "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=800&q=80",
+        "alt": "Expedition Tail Bag Master",
+        "isPrimary": true
+      }
+    ],
+    "material": "500D High Density Heavy Duty PVC Tarpaulin (100% IPX6 Waterproof)",
+    "specifications": {
+      "Capacity": "60 Litres Expandable",
+      "Mounting": "4 Alloy G-hook cam straps + 2 Under-seat safety anchor belts",
+      "Waterproofing": "High-frequency electro-welded seams (submersible class)",
+      "Carrying": "Heavy padded neoprene shoulder harness and dual side carry handles"
+    },
+    "features": [
+      "3-fold roll-top sealing mechanism guarantees zero water ingress during river crossings",
+      "Air release decompression valve allowing you to compress the bag rock-flat",
+      "MOLLE attachment grid on top for lashing rain gear or camping mats",
+      "Universal fitment tested on Royal Enfield Himalayan, KTM Adventure, BMW GS, and sports tourers"
+    ],
+    "waterproofRating": "IPX6 Submersible Waterproofing",
+    "tags": [
+      "Luggage",
+      "Tail Bag",
+      "Waterproof",
+      "Expedition",
+      "Touring"
+    ],
+    "status": "ACTIVE",
+    "rating": 4.9,
+    "reviewCount": 88,
+    "isFeatured": true,
+    "isBestSeller": true,
+    "createdAt": "2026-01-25T11:00:00Z",
+    "updatedAt": "2026-03-06T11:00:00Z"
+  },
+  {
+    "id": "prod-5",
+    "name": "TerraCross CE Level 2 Armored Touring Pants",
+    "sku": "RDX-PNT-TC2",
+    "brand": "RIDEX MOTO",
+    "category": "Riding Pants",
+    "subcategory": "Adventure Touring",
+    "description": "Engineered with reinforced Cordura 600D and 1000D abrasion panels at knees and seat. Fitted with CE Level 2 adjustable knee armors and Level 2 hip protectors. Features large accordion stretch panels above knees and lower back for maximum touring comfort.",
+    "price": 7999,
+    "originalPrice": 9499,
+    "discountPercentage": 16,
+    "gstPercentage": 18,
+    "stock": 28,
+    "lowStockThreshold": 6,
+    "sizes": [
+      "30",
+      "32",
+      "34",
+      "36",
+      "38",
+      "40"
+    ],
+    "colors": [
+      "Obsidian Black",
+      "Sand Khaki"
+    ],
+    "colorVariants": [
+      {
+        "id": "cv-5-black",
+        "colorName": "Obsidian Black",
+        "colorHex": "#0f172a",
+        "images": [
+          {
+            "id": "img-5-1",
+            "url": "https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&fit=crop&w=800&q=80",
+            "alt": "TerraCross Pants Black",
+            "isPrimary": true
+          }
+        ]
+      },
+      {
+        "id": "cv-5-khaki",
+        "colorName": "Sand Khaki",
+        "colorHex": "#78716c",
+        "images": [
+          {
+            "id": "img-5-2",
+            "url": "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=800&q=80",
+            "alt": "TerraCross Pants Khaki",
+            "isPrimary": true
+          }
+        ]
+      }
+    ],
+    "masterImages": [
+      {
+        "id": "img-5-master",
+        "url": "https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&fit=crop&w=800&q=80",
+        "alt": "TerraCross Touring Pants",
+        "isPrimary": true
+      }
+    ],
+    "material": "Cordura 600D + 1000D Ballistic Knee Reinforcements",
+    "specifications": {
+      "Armor Rating": "CE EN1621-1 Level 2 (Knee & Hip inserts included)",
+      "Waterproof Liner": "Detachable 8,000mm Breathable Membrane",
+      "Fit": "Pre-curved adventure riding posture with accordion flex"
+    },
+    "features": [
+      "Height-adjustable knee armor pockets for perfect knee-cap alignment",
+      "Heat-resistant leather panels on inner calf against engine heat",
+      "Wide boot-cut ankle closure accommodating adventure and motocross boots",
+      "Zippered thigh ventilation scoops with open mesh locking tabs"
+    ],
+    "armorLevel": "CE Level 2",
+    "waterproofRating": "8,000 mm H2O detachable liner",
+    "tags": [
+      "Riding Pants",
+      "Adventure",
+      "CE Level 2",
+      "Cordura"
+    ],
+    "status": "ACTIVE",
+    "rating": 4.8,
+    "reviewCount": 64,
+    "createdAt": "2026-02-10T14:00:00Z",
+    "updatedAt": "2026-03-01T14:00:00Z"
+  },
+  {
+    "id": "prod-6",
+    "name": "ApexStrider Waterproof Adventure Riding Boots",
+    "sku": "RDX-BOT-AS1",
+    "brand": "RIDEX MOTO",
+    "category": "Riding Boots",
+    "subcategory": "Adventure & Touring",
+    "description": "Mid-calf adventure touring boots with full-grain microfiber leather, reinforced TPU shin plates, dual malleolus ankle discs, vulcanized oil-resistant grip sole, and breathable waterproof membrane.",
+    "price": 8499,
+    "originalPrice": 10999,
+    "discountPercentage": 23,
+    "gstPercentage": 18,
+    "stock": 22,
+    "lowStockThreshold": 5,
+    "sizes": [
+      "40 (UK 6)",
+      "41 (UK 7)",
+      "42 (UK 8)",
+      "43 (UK 9)",
+      "44 (UK 10)",
+      "45 (UK 11)"
+    ],
+    "colors": [
+      "Vintage Brown",
+      "Stealth Black"
+    ],
+    "colorVariants": [
+      {
+        "id": "cv-6-brown",
+        "colorName": "Vintage Brown",
+        "colorHex": "#78350f",
+        "images": [
+          {
+            "id": "img-6-1",
+            "url": "https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=800&q=80",
+            "alt": "ApexStrider Boots Vintage Brown",
+            "isPrimary": true
+          }
+        ]
+      },
+      {
+        "id": "cv-6-black",
+        "colorName": "Stealth Black",
+        "colorHex": "#18181b",
+        "images": [
+          {
+            "id": "img-6-2",
+            "url": "https://images.unsplash.com/photo-1520639888713-7851133b1ed0?auto=format&fit=crop&w=800&q=80",
+            "alt": "ApexStrider Boots Stealth Black",
+            "isPrimary": true
+          }
+        ]
+      }
+    ],
+    "masterImages": [
+      {
+        "id": "img-6-master",
+        "url": "https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=800&q=80",
+        "alt": "ApexStrider Riding Boots",
+        "isPrimary": true
+      }
+    ],
+    "material": "Full-Grain Hydrophobic Microfiber Leather + Reinforced TPU Armor",
+    "specifications": {
+      "Certification": "CE EN 13634:2017 Certified (Level 2/2/2/2 WR)",
+      "Sole": "Non-slip high traction vulcanized rubber with steel shank",
+      "Closure": "Dual aluminum quick-release buckles + top Velcro flap"
+    },
+    "features": [
+      "Rigid steel shank inside sole to prevent transverse crushing foot injuries",
+      "TPU gear shift pad on both toe boxes for long lasting durability",
+      "Hydroguard breathable waterproof inner bootie keeping feet dry in rain",
+      "Anti-bacterial replaceable footbed with shock absorbing heel pad"
+    ],
+    "armorLevel": "CE Level 2",
+    "waterproofRating": "100% Waterproof Hydroguard membrane",
+    "tags": [
+      "Boots",
+      "Footwear",
+      "CE Certified",
+      "Adventure"
+    ],
+    "status": "ACTIVE",
+    "rating": 4.9,
+    "reviewCount": 52,
+    "createdAt": "2026-02-15T09:00:00Z",
+    "updatedAt": "2026-03-04T09:00:00Z"
+  },
+  {
+    "id": "prod-7",
+    "name": "QuickLock Magnetic Tank Bag 18L",
+    "sku": "RDX-LUG-TK18",
+    "brand": "RIDEX MOTO",
+    "category": "Tank Bags",
+    "subcategory": "Touring Luggage",
+    "description": "Expandable magnetic and strap-on motorcycle tank bag. Features 6 rare-earth neodymium magnets, anti-scratch non-slip rubber base, touchscreen transparent smartphone sleeve, and included neon storm rain cover.",
+    "price": 2499,
+    "originalPrice": 3199,
+    "discountPercentage": 22,
+    "gstPercentage": 18,
+    "stock": 45,
+    "lowStockThreshold": 10,
+    "sizes": [
+      "18 Litres Expandable"
+    ],
+    "colors": [
+      "Carbon Black"
+    ],
+    "colorVariants": [
+      {
+        "id": "cv-7-black",
+        "colorName": "Carbon Black",
+        "colorHex": "#18181b",
+        "images": [
+          {
+            "id": "img-7-1",
+            "url": "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=800&q=80",
+            "alt": "QuickLock Magnetic Tank Bag",
+            "isPrimary": true
+          }
+        ]
+      }
+    ],
+    "masterImages": [
+      {
+        "id": "img-7-master",
+        "url": "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=800&q=80",
+        "alt": "QuickLock Tank Bag",
+        "isPrimary": true
+      }
+    ],
+    "material": "1680D Ballistic Poly-Nylon + Carbon Texture EVA Hard Shell",
+    "specifications": {
+      "Capacity": "12L collapsed, 18L expanded with perimeter zipper",
+      "Magnets": "6 High-strength Neodymium encapsulated pods",
+      "Smartphone": "Fits screens up to 7 inches with cable charging pass-through"
+    },
+    "features": [
+      "Anti-scratch micro-suede underside protects your motorcycle fuel tank paint",
+      "Converts into a backpack with concealed shoulder straps for off-bike carrying",
+      "Hi-viz fluorescent rain cover with elastic cinch cord included in bottom pouch"
+    ],
+    "tags": [
+      "Tank Bag",
+      "Luggage",
+      "Magnetic",
+      "Accessories"
+    ],
+    "status": "ACTIVE",
+    "rating": 4.8,
+    "reviewCount": 76,
+    "createdAt": "2026-02-18T10:00:00Z",
+    "updatedAt": "2026-03-02T10:00:00Z"
+  },
+  {
+    "id": "prod-8",
+    "name": "HyperBionic CE Level 2 Chest & Back Armored Vest",
+    "sku": "RDX-PROT-HB2",
+    "brand": "RIDEX MOTO",
+    "category": "Riding Protection",
+    "subcategory": "Core Protection",
+    "description": "Ultra-lightweight breathable body armor vest with CE Level 2 D3O viscoelastic chest and spinal protection. Designed to be worn under any off-road jersey, rally jacket, or street apparel.",
+    "price": 5499,
+    "originalPrice": 6999,
+    "discountPercentage": 21,
+    "gstPercentage": 18,
+    "stock": 30,
+    "lowStockThreshold": 5,
+    "sizes": [
+      "S/M",
+      "L/XL",
+      "2XL"
+    ],
+    "colors": [
+      "Stealth Armor"
+    ],
+    "colorVariants": [
+      {
+        "id": "cv-8-stealth",
+        "colorName": "Stealth Armor",
+        "colorHex": "#18181b",
+        "images": [
+          {
+            "id": "img-8-1",
+            "url": "https://images.unsplash.com/photo-1544441893-675973e31985?auto=format&fit=crop&w=800&q=80",
+            "alt": "HyperBionic Armor Vest",
+            "isPrimary": true
+          }
+        ]
+      }
+    ],
+    "masterImages": [
+      {
+        "id": "img-8-master",
+        "url": "https://images.unsplash.com/photo-1544441893-675973e31985?auto=format&fit=crop&w=800&q=80",
+        "alt": "HyperBionic Armor Vest Master",
+        "isPrimary": true
+      }
+    ],
+    "material": "Vented Honeycomb Polycarbonate + D3O Level 2 Smart Molecular Armor",
+    "specifications": {
+      "Back Protection": "CE EN1621-2:2014 Level 2",
+      "Chest Protection": "CE EN1621-3:2018 Level 2",
+      "Weight": "Only 920 grams"
+    },
+    "features": [
+      "Viscoelastic molecules lock together instantly on impact to disperse force",
+      "Vented honeycomb mesh chassis allows continuous 360-degree air circulation",
+      "Ergonomic kidney belt with dual elastic stabilization straps"
+    ],
+    "armorLevel": "D3O Level 2",
+    "tags": [
+      "Protection",
+      "CE Level 2",
+      "Chest Armor",
+      "Spine Protector"
+    ],
+    "status": "DRAFT",
+    "rating": 4.9,
+    "reviewCount": 39,
+    "createdAt": "2026-02-22T15:00:00Z",
+    "updatedAt": "2026-09-12T16:35:00.311Z",
+    "waterproofRating": "10,000mm"
+  }
+]

@@ -1,0 +1,203 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ----------------------------------------------------
+    // GLOBAL HELPERS & HARDENED PRIMITIVES
+    // ----------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Hardened Admin check: Bootstrapped runtime admin email + dedicated admin collection
+    function isAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.email == 'ms0736687@gmail.com' && request.auth.token.email_verified == true) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // ----------------------------------------------------
+    // ENTITY VALIDATION HELPERS
+    // ----------------------------------------------------
+
+    function isValidProduct(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+             data.price is number && data.price >= 0 &&
+             data.category is string && data.category.size() <= 100 &&
+             data.inStock is bool;
+    }
+
+    function isValidOrder(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.customerEmail is string && data.customerEmail.size() <= 150 &&
+             data.totalAmount is number && data.totalAmount >= 0 &&
+             data.orderStatus is string && data.orderStatus.size() <= 50 &&
+             data.paymentStatus is string && data.paymentStatus.size() <= 50;
+    }
+
+    function isValidCustomer(data) {
+      return data.uid is string && data.uid.size() <= 128 &&
+             data.email is string && data.email.size() <= 150 &&
+             (!('role' in data) || data.role == 'CUSTOMER' || isAdmin());
+    }
+
+    function isValidCoupon(data) {
+      return data.code is string && data.code.size() > 0 && data.code.size() <= 50 &&
+             data.discountType in ['PERCENTAGE', 'FLAT'] &&
+             data.discountValue is number && data.discountValue >= 0 &&
+             data.isActive is bool;
+    }
+
+    function isValidReturn(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.orderId is string && data.orderId.size() <= 128 &&
+             data.customerEmail is string && data.customerEmail.size() <= 150 &&
+             data.reason is string && data.reason.size() <= 1000 &&
+             data.status in ['PENDING', 'APPROVED', 'REJECTED', 'PICKED_UP', 'REFUNDED'];
+    }
+
+    // ----------------------------------------------------
+    // DEFAULT-DENY GLOBAL SAFETY NET
+    // ----------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ----------------------------------------------------
+    // PRODUCTS COLLECTION
+    // Public read-only for shoppers; Admin-only writes
+    // ----------------------------------------------------
+    match /products/{productId} {
+      allow get: if isValidId(productId);
+      allow list: if true;
+      allow create: if isAdmin() && isValidId(productId) && isValidProduct(incoming());
+      allow update: if isAdmin() && isValidId(productId) && isValidProduct(incoming());
+      allow delete: if isAdmin() && isValidId(productId);
+    }
+
+    // ----------------------------------------------------
+    // ORDERS COLLECTION
+    // Customers can view and query their own orders; Admins can view and update all
+    // ----------------------------------------------------
+    match /orders/{orderId} {
+      allow get: if isValidId(orderId) && (
+        isAdmin() ||
+        (isSignedIn() && (resource.data.customerId == request.auth.uid || resource.data.customerEmail == request.auth.token.email))
+      );
+      // Secure list query: client must query where customerId == auth.uid or admin
+      allow list: if isAdmin() || (
+        isSignedIn() && (
+          resource.data.customerId == request.auth.uid ||
+          resource.data.customerEmail == request.auth.token.email
+        )
+      );
+      // Allow creation by signed in customer or checkout session with valid schema
+      allow create: if isValidId(orderId) && isValidOrder(incoming()) && (
+        isAdmin() ||
+        (isSignedIn() && (incoming().customerId == request.auth.uid || incoming().customerEmail == request.auth.token.email)) ||
+        (!isSignedIn() && incoming().customerEmail.size() > 0)
+      );
+      allow update: if isAdmin() && isValidId(orderId) && isValidOrder(incoming());
+      allow delete: if isAdmin() && isValidId(orderId);
+    }
+
+    // ----------------------------------------------------
+    // USERS (CUSTOMER PROFILES)
+    // Users can only read/write their own profile; No self-assigned admin
+    // ----------------------------------------------------
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isValidId(userId) && isOwner(userId) && isValidCustomer(incoming());
+      allow update: if isValidId(userId) && (
+        (isOwner(userId) && isValidCustomer(incoming()) && (!('role' in incoming()) || incoming().role == existing().role)) ||
+        isAdmin()
+      );
+      allow delete: if isAdmin() && isValidId(userId);
+    }
+
+    // ----------------------------------------------------
+    // ADMINS COLLECTION
+    // Only verified admins can manage or inspect admin directory
+    // ----------------------------------------------------
+    match /admins/{adminId} {
+      allow get: if isValidId(adminId) && isAdmin();
+      allow list: if isAdmin();
+      allow create, update, delete: if isAdmin() && isValidId(adminId);
+    }
+
+    // ----------------------------------------------------
+    // SETTINGS COLLECTION
+    // Public read for brand info & policies; Admin only write
+    // ----------------------------------------------------
+    match /settings/{settingId} {
+      allow get: if isValidId(settingId);
+      allow list: if true;
+      allow create, update, delete: if isAdmin() && isValidId(settingId);
+    }
+
+    // ----------------------------------------------------
+    // COUPONS COLLECTION
+    // Public read for discount validation; Admin only manage
+    // ----------------------------------------------------
+    match /coupons/{couponId} {
+      allow get: if isValidId(couponId);
+      allow list: if true;
+      allow create: if isAdmin() && isValidId(couponId) && isValidCoupon(incoming());
+      allow update: if isAdmin() && isValidId(couponId) && isValidCoupon(incoming());
+      allow delete: if isAdmin() && isValidId(couponId);
+    }
+
+    // ----------------------------------------------------
+    // RETURNS COLLECTION
+    // Customer can submit return requests; Admin processes them
+    // ----------------------------------------------------
+    match /returns/{returnId} {
+      allow get: if isValidId(returnId) && (
+        isAdmin() ||
+        (isSignedIn() && resource.data.customerEmail == request.auth.token.email)
+      );
+      allow list: if isAdmin() || (
+        isSignedIn() && resource.data.customerEmail == request.auth.token.email
+      );
+      allow create: if isValidId(returnId) && isValidReturn(incoming()) && (
+        isAdmin() ||
+        (isSignedIn() && incoming().customerEmail == request.auth.token.email)
+      );
+      allow update: if isAdmin() && isValidId(returnId) && isValidReturn(incoming());
+      allow delete: if isAdmin() && isValidId(returnId);
+    }
+
+    // ----------------------------------------------------
+    // TEST / DIAGNOSTIC CONNECTION
+    // Used by getDocFromServer connection check on boot
+    // ----------------------------------------------------
+    match /test/{testId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

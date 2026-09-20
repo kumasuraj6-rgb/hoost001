@@ -1,0 +1,156 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Riding gear, rain suits, luggage and protection equipment",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 200 },
+        "sku": { "type": "string", "maxLength": 100 },
+        "brand": { "type": "string", "maxLength": 100 },
+        "category": { "type": "string", "maxLength": 100 },
+        "subcategory": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 3000 },
+        "price": { "type": "number" },
+        "originalPrice": { "type": "number" },
+        "discountPercentage": { "type": "number" },
+        "gstPercentage": { "type": "number" },
+        "stock": { "type": "number" },
+        "inStock": { "type": "boolean" },
+        "rating": { "type": "number" },
+        "reviewsCount": { "type": "number" },
+        "isBestSeller": { "type": "boolean" },
+        "isFeatured": { "type": "boolean" },
+        "isTrending": { "type": "boolean" },
+        "isRiderChoice": { "type": "boolean" },
+        "badge": { "type": "string", "maxLength": 50 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "name", "price", "category", "inStock"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Order placed by a registered or guest customer",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "customerId": { "type": "string", "maxLength": 128 },
+        "customerEmail": { "type": "string", "maxLength": 150 },
+        "customerPhone": { "type": "string", "maxLength": 30 },
+        "customerName": { "type": "string", "maxLength": 150 },
+        "totalAmount": { "type": "number" },
+        "subtotal": { "type": "number" },
+        "shippingCost": { "type": "number" },
+        "discountAmount": { "type": "number" },
+        "paymentMethod": { "type": "string", "maxLength": 50 },
+        "paymentStatus": { "type": "string", "enum": ["PENDING", "COMPLETED", "FAILED", "REFUNDED"] },
+        "orderStatus": { "type": "string", "enum": ["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED", "RETURN_REQUESTED"] },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "customerEmail", "totalAmount", "orderStatus", "paymentStatus"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "User customer profile",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 150 },
+        "email": { "type": "string", "maxLength": 150 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "role": { "type": "string", "enum": ["CUSTOMER", "ADMIN"] },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["uid", "email"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "System administrator identity",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 150 },
+        "role": { "type": "string", "enum": ["ADMIN", "SUPER_ADMIN"] }
+      },
+      "required": ["uid", "email"]
+    },
+    "StoreSettings": {
+      "title": "StoreSettings",
+      "description": "Site branding, company metadata, and operational parameters",
+      "type": "object",
+      "properties": {
+        "brandName": { "type": "string", "maxLength": 100 },
+        "brandEmail": { "type": "string", "maxLength": 150 },
+        "supportEmail": { "type": "string", "maxLength": 150 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "websiteName": { "type": "string", "maxLength": 100 },
+        "companyName": { "type": "string", "maxLength": 150 },
+        "gstin": { "type": "string", "maxLength": 50 },
+        "freeShippingThreshold": { "type": "number" },
+        "flatShippingRate": { "type": "number" },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      }
+    },
+    "Coupon": {
+      "title": "Coupon",
+      "description": "Discount vouchers and promotional coupon codes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "code": { "type": "string", "maxLength": 50 },
+        "discountType": { "type": "string", "enum": ["PERCENTAGE", "FLAT"] },
+        "discountValue": { "type": "number" },
+        "minOrderValue": { "type": "number" },
+        "isActive": { "type": "boolean" },
+        "expiryDate": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["code", "discountType", "discountValue", "isActive"]
+    },
+    "ReturnRequest": {
+      "title": "ReturnRequest",
+      "description": "Customer return and replacement requests",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "orderId": { "type": "string", "maxLength": 128 },
+        "customerEmail": { "type": "string", "maxLength": 150 },
+        "reason": { "type": "string", "maxLength": 1000 },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED", "PICKED_UP", "REFUNDED"] },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "orderId", "customerEmail", "reason", "status"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Riding gear catalog items available for browsing and purchasing"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Customer order records and shipment tracking"
+    },
+    "/users/{userId}": {
+      "schema": "Customer",
+      "description": "Customer account details and preferences"
+    },
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Authorized admin users with store management permissions"
+    },
+    "/settings/{settingId}": {
+      "schema": "StoreSettings",
+      "description": "Configurable store settings and policies"
+    },
+    "/coupons/{couponId}": {
+      "schema": "Coupon",
+      "description": "Discount coupon codes for checkout"
+    },
+    "/returns/{returnId}": {
+      "schema": "ReturnRequest",
+      "description": "Rider returns and warranty claims"
+    }
+  }
+}
