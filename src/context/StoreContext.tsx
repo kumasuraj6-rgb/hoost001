@@ -824,7 +824,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Dedicated Admin Forgot Password: Send OTP
   const adminSendForgotOtp = useCallback(
-    async (email: string): Promise<{ success: boolean; demoOtp?: string; error?: string }> => {
+    async (email: string): Promise<{ success: boolean; error?: string }> => {
       const trimmedEmail = email.trim().toLowerCase();
       const isAuthorizedEmail = trimmedEmail === 'skgsurajshahu317@gmail.com' || trimmedEmail === 'ms0736687@gmail.com';
       if (!isAuthorizedEmail) {
@@ -834,7 +834,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       try {
-        // Also dispatch Firebase Password Reset email
+        // Also dispatch Firebase Password Reset email in parallel
         sendFirebasePasswordReset(trimmedEmail).catch(() => {});
 
         const res = await fetch('/api/auth/admin/forgot-password/send-otp', {
@@ -850,8 +850,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
 
         logUserActionToFirestore('ADMIN_FORGOT_PASSWORD_REQUESTED', 'ADMIN', trimmedEmail).catch(() => {});
-        showToast(`Security OTP sent to ${trimmedEmail}. Demo Code: ${data.demoOtp || '1122'}`, 'success');
-        return { success: true, demoOtp: data.demoOtp || '1122' };
+        showToast(data.message || `Security OTP sent to ${trimmedEmail}.`, 'success');
+        return { success: true };
       } catch (err: any) {
         const errorMsg = err?.message || 'Failed to send admin verification OTP.';
         showToast(errorMsg, 'error');

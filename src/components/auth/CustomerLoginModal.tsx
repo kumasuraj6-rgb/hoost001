@@ -62,12 +62,11 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
   // Forgot Password via OTP States
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotOtpSent, setForgotOtpSent] = useState(false);
-  const [forgotOtpDigits, setForgotOtpDigits] = useState(['1', '2', '3', '4']);
+  const [forgotOtpDigits, setForgotOtpDigits] = useState(['', '', '', '']);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const [demoOtpNotice, setDemoOtpNotice] = useState<string | null>(null);
 
   // Status & Feedback
   const [isLoading, setIsLoading] = useState(false);
@@ -90,7 +89,6 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
     if (isOpen) {
       setErrorMessage(null);
       setSuccessMessage(null);
-      setDemoOtpNotice(null);
       setIsLoading(false);
       if (!forgotEmail && email) {
         setForgotEmail(email);
@@ -217,16 +215,11 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
 
       setForgotOtpSent(true);
       setCountdown(30);
-      setForgotOtpDigits(['1', '2', '3', '4']); // Pre-filled demo for rapid testing
-      setDemoOtpNotice(`Verification OTP: ${data.demoOtp || '1234'}`);
-      showToast(`Verification OTP dispatched to ${cleanEmail}. Demo Code: ${data.demoOtp || '1234'}`, 'info');
+      setForgotOtpDigits(['', '', '', '']);
+      setSuccessMessage(data.message || `A 4-digit verification code has been dispatched to ${cleanEmail}. (Code expires in 10 minutes)`);
+      showToast(data.message || `Verification OTP dispatched to ${cleanEmail}.`, 'info');
     } catch (err: any) {
-      // Local fallback
-      setForgotOtpSent(true);
-      setCountdown(30);
-      setForgotOtpDigits(['1', '2', '3', '4']);
-      setDemoOtpNotice('Verification OTP: 1234');
-      showToast('Verification OTP dispatched. Demo Code: 1234', 'info');
+      setErrorMessage(err?.message || 'Failed to dispatch verification OTP. Please verify your connection.');
     } finally {
       setIsLoading(false);
     }
@@ -281,8 +274,12 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
         setEmail(cleanEmail);
         setPassword(newPassword);
         setSuccessMessage('Password reset successfully! Please sign in with your new password.');
+        showToast('Password reset successfully! Please sign in.', 'success');
         setMode('SIGN_IN');
         setForgotOtpSent(false);
+        setForgotOtpDigits(['', '', '', '']);
+        setNewPassword('');
+        setConfirmPassword('');
       } else {
         setErrorMessage(result.error || 'Failed to verify OTP or reset password.');
       }
@@ -386,15 +383,6 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
           <div className="p-3 rounded-xl bg-emerald-950/80 border border-emerald-800 text-emerald-200 text-xs flex items-center gap-2 animate-fade-in">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>{successMessage}</span>
-          </div>
-        )}
-
-        {demoOtpNotice && mode === 'FORGOT_PASSWORD' && (
-          <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between animate-fade-in">
-            <span className="font-mono font-semibold">{demoOtpNotice}</span>
-            <span className="text-[10px] uppercase font-bold text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded">
-              Demo OTP
-            </span>
           </div>
         )}
 
@@ -628,6 +616,8 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
                         inputMode="numeric"
                         autoComplete="one-time-code"
                         maxLength={1}
+                        placeholder="•"
+                        autoFocus={index === 0}
                         value={digit}
                         onChange={(e) => {
                           const val = e.target.value.replace(/\D/g, '');

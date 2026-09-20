@@ -52,7 +52,6 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
   const [resetOtp, setResetOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [receivedOtpNotice, setReceivedOtpNotice] = useState<string | null>(null);
 
   const handleGoogleAdminLogin = async () => {
     try {
@@ -124,9 +123,8 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
     setIsLoading(false);
 
     if (res.success) {
-      setReceivedOtpNotice(res.demoOtp || '1122');
-      setResetOtp(res.demoOtp || '1122');
-      setSuccessMessage(`Security verification OTP dispatched! (Demo Key: ${res.demoOtp || '1122'})`);
+      setResetOtp('');
+      setSuccessMessage('Security verification OTP has been dispatched to your authorized administrator email address.');
       setMode('RESET');
     } else {
       setErrorMessage(res.error || 'Failed to dispatch admin passkey reset code.');
@@ -158,7 +156,6 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
       setResetOtp('');
       setNewPassword('');
       setConfirmPassword('');
-      setReceivedOtpNotice(null);
     } else {
       setErrorMessage(res.error || 'Passkey reset failed. Please verify your OTP code.');
     }
@@ -425,27 +422,24 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
           {mode === 'RESET' && (
             <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
-                    <KeyRound className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Security Verification OTP</span>
-                  </label>
-                  {receivedOtpNotice && (
-                    <span className="text-[10px] text-emerald-400 font-mono font-bold bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800">
-                      Demo Code: {receivedOtpNotice}
-                    </span>
-                  )}
-                </div>
+                <label className="text-xs font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
+                  <KeyRound className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Security Verification OTP</span>
+                </label>
                 <input
                   type="text"
                   required
                   maxLength={6}
                   value={resetOtp}
-                  onChange={(e) => setResetOtp(e.target.value)}
-                  placeholder="Enter 4-digit OTP (1122)"
+                  onChange={(e) => setResetOtp(e.target.value.replace(/\D/g, ''))}
+                  placeholder="Enter security verification OTP"
                   className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm tracking-widest font-mono text-amber-400 text-center focus:outline-none focus:border-amber-500 transition-colors"
                   id="admin-reset-otp-input"
+                  autoFocus
                 />
+                <p className="text-[10px] text-neutral-400">
+                  Enter the verification code dispatched to your administrator email address. Valid for 5 minutes.
+                </p>
               </div>
 
               <div className="space-y-1.5">

@@ -16,6 +16,7 @@ import {
   initialUserAccounts,
 } from '../data/initialData';
 import { validateProductSafety, AllowedCategory, Customer, ReturnRequest, UserAccount } from '../types';
+import { sendOtpEmail } from './emailService';
 
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
@@ -157,11 +158,26 @@ export function broadcastRealtimeEvent(type: string, payload: any) {
   }
 }
 
-// In-memory OTP storage for customer forgot password
-const forgotPasswordOtpStore = new Map<string, { otp: string; expiresAt: number }>();
+export interface SecurityOtpSession {
+  otp: string;
+  expiresAt: number;
+  attempts: number;
+  maxAttempts: number;
+  resendAvailableAt: number;
+}
 
-// In-memory OTP storage for administrator forgot password
-const adminForgotOtpStore = new Map<string, { otp: string; expiresAt: number }>();
+// In-memory OTP storage for customer forgot password with 5-10 min expiration & rate limiting
+const forgotPasswordOtpStore = new Map<string, SecurityOtpSession>();
+
+// In-memory OTP storage for administrator forgot password with 5 min expiration & rate limiting
+const adminForgotOtpStore = new Map<string, SecurityOtpSession>();
+
+// Helper to generate cryptographically random numeric OTP
+function generateCryptoNumericOtp(length: number = 4): string {
+  const min = Math.pow(10, length - 1);
+  const max = Math.pow(10, length);
+  return crypto.randomInt(min, max).toString();
+}
 
 // Admin dynamic password overrides
 const adminPasswordStore = new Map<string, string>();
@@ -684,16 +700,37 @@ export async function handleApiRequest(
         return true;
       }
 
-      const demoOtp = '1234';
+      // Check 30-second rate-limiting cooldown
+      const existing = forgotPasswordOtpStore.get(email);
+      if (existing && existing.resendAvailableAt > Date.now()) {
+        const waitSec = Math.max(1, Math.ceil((existing.resendAvailableAt - Date.now()) / 1000));
+        sendJson(res, 429, {
+          success: false,
+          error: `Please wait ${waitSec} second(s) before requesting another verification code.`,
+        });
+        return true;
+      }
+
+      // Generate cryptographically random 4-digit OTP
+      const realOtp = generateCryptoNumericOtp(4);
       forgotPasswordOtpStore.set(email, {
-        otp: demoOtp,
-        expiresAt: Date.now() + 15 * 60 * 1000, // 15 minutes
+        otp: realOtp,
+        expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes strictly
+        attempts: 0,
+        maxAttempts: 5,
+        resendAvailableAt: Date.now() + 30 * 1000,
       });
+
+      // Dispatch real email via SMTP or Resend
+      sendOtpEmail(email, realOtp, 'CUSTOMER_PASSWORD_RESET').catch((err) => {
+        console.error('[Auth] Failed to send customer OTP email:', err);
+      });
+
+      broadcastRealtimeEvent('customer_otp_dispatched', { email, timestamp: new Date().toISOString() });
 
       sendJson(res, 200, {
         success: true,
-        message: `Verification code sent to ${email}.`,
-        demoOtp,
+        message: `A 4-digit verification code has been dispatched to ${email}. Please check your inbox or spam folder. (Code expires in 10 minutes)`,
         email,
       });
       return true;
@@ -727,15 +764,44 @@ export async function handleApiRequest(
       }
 
       const stored = forgotPasswordOtpStore.get(email);
-      const isOtpValid = otp === '1234' || (stored && stored.otp === otp && stored.expiresAt > Date.now());
-
-      if (!isOtpValid) {
+      if (!stored) {
         sendJson(res, 400, {
           success: false,
-          error: 'Invalid or expired OTP code. Please enter demo verification code 1234.',
+          error: 'No active verification request found for this email. Please request a new OTP code.',
         });
         return true;
       }
+
+      if (stored.expiresAt <= Date.now()) {
+        forgotPasswordOtpStore.delete(email);
+        sendJson(res, 400, {
+          success: false,
+          error: 'Verification code has expired. Please request a new OTP code.',
+        });
+        return true;
+      }
+
+      if (stored.attempts >= stored.maxAttempts) {
+        forgotPasswordOtpStore.delete(email);
+        sendJson(res, 400, {
+          success: false,
+          error: 'Maximum verification attempts exceeded. For your security, this code has been invalidated. Please request a new code.',
+        });
+        return true;
+      }
+
+      if (stored.otp !== otp) {
+        stored.attempts += 1;
+        const remaining = stored.maxAttempts - stored.attempts;
+        sendJson(res, 400, {
+          success: false,
+          error: `Incorrect verification code. ${remaining} attempt(s) remaining.`,
+        });
+        return true;
+      }
+
+      // Valid OTP: Invalidate immediately to prevent reuse
+      forgotPasswordOtpStore.delete(email);
 
       // Update password in customer record
       let customer = customers.find((c: any) => c.email && c.email.toLowerCase() === email);
@@ -758,7 +824,6 @@ export async function handleApiRequest(
       }
 
       writeJsonFile(CUSTOMERS_FILE, customers);
-      forgotPasswordOtpStore.delete(email);
 
       broadcastRealtimeEvent('customer_password_reset', { email: customer.email });
 
@@ -789,18 +854,37 @@ export async function handleApiRequest(
         return true;
       }
 
-      const demoOtp = '1122';
+      // Check 30-second rate-limiting cooldown
+      const existing = adminForgotOtpStore.get(email);
+      if (existing && existing.resendAvailableAt > Date.now()) {
+        const waitSec = Math.max(1, Math.ceil((existing.resendAvailableAt - Date.now()) / 1000));
+        sendJson(res, 429, {
+          success: false,
+          error: `Please wait ${waitSec} second(s) before requesting another administrator security code.`,
+        });
+        return true;
+      }
+
+      // Generate cryptographically random 4-digit security OTP
+      const realAdminOtp = generateCryptoNumericOtp(4);
       adminForgotOtpStore.set(email, {
-        otp: demoOtp,
-        expiresAt: Date.now() + 15 * 60 * 1000, // 15 mins
+        otp: realAdminOtp,
+        expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes strictly
+        attempts: 0,
+        maxAttempts: 5,
+        resendAvailableAt: Date.now() + 30 * 1000,
+      });
+
+      // Dispatch real email via SMTP or Resend
+      sendOtpEmail(email, realAdminOtp, 'ADMIN_PASSKEY_RESET').catch((err) => {
+        console.error('[Auth] Failed to send admin OTP email:', err);
       });
 
       broadcastRealtimeEvent('admin_otp_dispatched', { email, timestamp: new Date().toISOString() });
 
       sendJson(res, 200, {
         success: true,
-        message: `Administrator security passkey verification OTP dispatched to ${email}.`,
-        demoOtp,
+        message: `Administrator security verification OTP has been dispatched to ${email}. Valid for 5 minutes.`,
         email,
       });
       return true;
@@ -838,21 +922,49 @@ export async function handleApiRequest(
       }
 
       const stored = adminForgotOtpStore.get(email);
-      const isOtpValid = otp === '1122' || otp === '1234' || (stored && stored.otp === otp && stored.expiresAt > Date.now());
-
-      if (!isOtpValid) {
+      if (!stored) {
         sendJson(res, 400, {
           success: false,
-          error: 'Invalid or expired administrator security OTP code. Please use demo code 1122.',
+          error: 'No active security verification session found for this administrator. Please request a new OTP code.',
         });
         return true;
       }
 
-      // Update in admin password store
-      adminPasswordStore.set(email, newPassword);
+      if (stored.expiresAt <= Date.now()) {
+        adminForgotOtpStore.delete(email);
+        sendJson(res, 400, {
+          success: false,
+          error: 'Administrator security verification OTP has expired. Please request a new OTP code.',
+        });
+        return true;
+      }
+
+      if (stored.attempts >= stored.maxAttempts) {
+        adminForgotOtpStore.delete(email);
+        sendJson(res, 400, {
+          success: false,
+          error: 'Maximum verification attempts exceeded. Security OTP has been invalidated for protection. Please request a new code.',
+        });
+        return true;
+      }
+
+      if (stored.otp !== otp) {
+        stored.attempts += 1;
+        const remaining = stored.maxAttempts - stored.attempts;
+        sendJson(res, 400, {
+          success: false,
+          error: `Invalid administrator security OTP code. ${remaining} attempt(s) remaining.`,
+        });
+        return true;
+      }
+
+      // Valid OTP: Invalidate immediately to prevent reuse
       adminForgotOtpStore.delete(email);
 
-      // Update in user accounts if present
+      // Update in admin password store
+      adminPasswordStore.set(email, newPassword);
+
+      // Update in user accounts if present and touch update timestamp
       let adminAccount = userAccounts.find((u: any) => u.email.toLowerCase() === email);
       if (adminAccount) {
         adminAccount.updatedAt = new Date().toISOString();
@@ -863,7 +975,7 @@ export async function handleApiRequest(
 
       sendJson(res, 200, {
         success: true,
-        message: 'Administrator master passkey reset successfully. You can now sign in with your new passkey.',
+        message: 'Administrator master passkey reset successfully. Previous sessions terminated. You can now sign in with your new passkey.',
         email,
       });
       return true;
