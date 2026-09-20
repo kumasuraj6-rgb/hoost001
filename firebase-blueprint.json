@@ -121,9 +121,28 @@
         "createdAt": { "type": "string", "maxLength": 64 }
       },
       "required": ["id", "orderId", "customerEmail", "reason", "status"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Security and user activity audit events across admin and customer portals",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "action": { "type": "string", "maxLength": 100 },
+        "portal": { "type": "string", "enum": ["ADMIN", "CUSTOMER"] },
+        "userEmail": { "type": "string", "maxLength": 150 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "timestamp": { "type": "string", "maxLength": 64 },
+        "details": { "type": "string", "maxLength": 1000 }
+      },
+      "required": ["id", "action", "portal", "timestamp"]
     }
   },
   "firestore": {
+    "/audit_logs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Real-time security and data syncing audit trail"
+    },
     "/products/{productId}": {
       "schema": "Product",
       "description": "Riding gear catalog items available for browsing and purchasing"

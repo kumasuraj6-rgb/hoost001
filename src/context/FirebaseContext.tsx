@@ -1,13 +1,24 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, onAuthStateChanged } from 'firebase/auth';
-import { auth, signInWithGoogle, logoutFirebaseUser, testFirestoreConnection } from '../firebase/firebase';
-import { saveCustomerToFirestore, fetchCustomerFromFirestore } from '../firebase/firestoreService';
+import {
+  auth,
+  signInWithGoogle,
+  logoutFirebaseUser,
+  testFirestoreConnection,
+  loginWithFirebaseEmailPassword,
+  registerWithFirebaseEmailPassword,
+  sendFirebasePasswordReset,
+} from '../firebase/firebase';
+import { saveCustomerToFirestore, logUserActionToFirestore } from '../firebase/firestoreService';
 
 interface FirebaseContextType {
   firebaseUser: User | null;
   isAuthReady: boolean;
   isLoggingIn: boolean;
   loginWithGoogle: () => Promise<User | null>;
+  loginWithEmailPassword: (email: string, pass: string) => Promise<User | null>;
+  registerWithEmailPassword: (email: string, pass: string) => Promise<User | null>;
+  sendPasswordReset: (email: string) => Promise<boolean>;
   logoutFirebase: () => Promise<void>;
   isFirebaseAdmin: boolean;
   firestoreConnected: boolean;
@@ -15,7 +26,7 @@ interface FirebaseContextType {
 
 const FirebaseContext = createContext<FirebaseContextType | undefined>(undefined);
 
-const ADMIN_EMAIL = 'ms0736687@gmail.com';
+const ADMIN_EMAILS = ['ms0736687@gmail.com', 'skgsurajshahu317@gmail.com'];
 
 export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
@@ -35,16 +46,26 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setIsAuthReady(true);
 
       if (currentUser && currentUser.email) {
+        const isAdmin = ADMIN_EMAILS.includes(currentUser.email.toLowerCase().trim());
         try {
-          // Persist / update customer profile in Firestore
+          // Persist / update profile in Firestore
           await saveCustomerToFirestore({
             uid: currentUser.uid,
             email: currentUser.email,
-            name: currentUser.displayName || 'Rider',
+            name: currentUser.displayName || (isAdmin ? 'Admin' : 'Rider'),
             phone: currentUser.phoneNumber || '',
-            role: currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() ? 'ADMIN' : 'CUSTOMER',
+            role: isAdmin ? 'ADMIN' : 'CUSTOMER',
             createdAt: new Date().toISOString(),
           });
+
+          // Log auth state sync to Firestore audit trail
+          await logUserActionToFirestore(
+            'AUTH_STATE_CHANGED',
+            isAdmin ? 'ADMIN' : 'CUSTOMER',
+            currentUser.email,
+            currentUser.uid,
+            { provider: currentUser.providerData?.[0]?.providerId || 'firebase' }
+          );
         } catch (err) {
           console.warn('[Firebase] Profile sync notice:', err);
         }
@@ -58,6 +79,10 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setIsLoggingIn(true);
     try {
       const user = await signInWithGoogle();
+      if (user && user.email) {
+        const isAdmin = ADMIN_EMAILS.includes(user.email.toLowerCase().trim());
+        await logUserActionToFirestore('GOOGLE_LOGIN_SUCCESS', isAdmin ? 'ADMIN' : 'CUSTOMER', user.email, user.uid);
+      }
       return user;
     } catch (err: any) {
       if (
@@ -73,12 +98,57 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const loginWithEmailPassword = async (email: string, pass: string): Promise<User | null> => {
+    setIsLoggingIn(true);
+    try {
+      const user = await loginWithFirebaseEmailPassword(email, pass);
+      const isAdmin = ADMIN_EMAILS.includes(email.toLowerCase().trim());
+      await logUserActionToFirestore('EMAIL_LOGIN_SUCCESS', isAdmin ? 'ADMIN' : 'CUSTOMER', email, user.uid);
+      return user;
+    } catch (err: any) {
+      console.warn('[Firebase] Email password login notice:', err?.message || err);
+      return null;
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const registerWithEmailPassword = async (email: string, pass: string): Promise<User | null> => {
+    setIsLoggingIn(true);
+    try {
+      const user = await registerWithFirebaseEmailPassword(email, pass);
+      await logUserActionToFirestore('EMAIL_REGISTER_SUCCESS', 'CUSTOMER', email, user.uid);
+      return user;
+    } catch (err: any) {
+      console.warn('[Firebase] Email password registration notice:', err?.message || err);
+      return null;
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const sendPasswordReset = async (email: string): Promise<boolean> => {
+    try {
+      const success = await sendFirebasePasswordReset(email);
+      const isAdmin = ADMIN_EMAILS.includes(email.toLowerCase().trim());
+      await logUserActionToFirestore('PASSWORD_RESET_EMAIL_DISPATCHED', isAdmin ? 'ADMIN' : 'CUSTOMER', email);
+      return success;
+    } catch (err) {
+      console.warn('[Firebase] Password reset error:', err);
+      return false;
+    }
+  };
+
   const logoutFirebase = async () => {
+    if (firebaseUser?.email) {
+      const isAdmin = ADMIN_EMAILS.includes(firebaseUser.email.toLowerCase().trim());
+      await logUserActionToFirestore('LOGOUT', isAdmin ? 'ADMIN' : 'CUSTOMER', firebaseUser.email, firebaseUser.uid);
+    }
     await logoutFirebaseUser();
   };
 
   const isFirebaseAdmin = Boolean(
-    firebaseUser?.email && firebaseUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()
+    firebaseUser?.email && ADMIN_EMAILS.includes(firebaseUser.email.toLowerCase().trim())
   );
 
   return (
@@ -88,6 +158,9 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         isAuthReady,
         isLoggingIn,
         loginWithGoogle,
+        loginWithEmailPassword,
+        registerWithEmailPassword,
+        sendPasswordReset,
         logoutFirebase,
         isFirebaseAdmin,
         firestoreConnected,

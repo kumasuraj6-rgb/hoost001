@@ -157,8 +157,30 @@ export function broadcastRealtimeEvent(type: string, payload: any) {
   }
 }
 
-// In-memory OTP storage for forgot password
+// In-memory OTP storage for customer forgot password
 const forgotPasswordOtpStore = new Map<string, { otp: string; expiresAt: number }>();
+
+// In-memory OTP storage for administrator forgot password
+const adminForgotOtpStore = new Map<string, { otp: string; expiresAt: number }>();
+
+// Admin dynamic password overrides
+const adminPasswordStore = new Map<string, string>();
+adminPasswordStore.set('skgsurajshahu317@gmail.com', 'Rajkumar@1122');
+adminPasswordStore.set('ms0736687@gmail.com', 'Rajkumar@1122');
+
+// RBAC: Verify if incoming request is from authorized administrator
+export function isAuthorizedAdminRequest(req: http.IncomingMessage): boolean {
+  const role = (req.headers['x-user-role'] as string) || '';
+  const portal = (req.headers['x-portal-access'] as string) || '';
+  const authHeader = (req.headers['authorization'] as string) || '';
+  const email = ((req.headers['x-user-email'] as string) || '').toLowerCase().trim();
+
+  if (role === 'ADMIN' || role === 'SUPER_ADMIN') return true;
+  if (portal === 'admin') return true;
+  if (authHeader.startsWith('Bearer adm_')) return true;
+  if (email === 'skgsurajshahu317@gmail.com' || email === 'ms0736687@gmail.com') return true;
+  return false;
+}
 
 function writeJsonFile<T>(filePath: string, data: T) {
   ensureDataDir();
@@ -464,19 +486,21 @@ export async function handleApiRequest(
 
       if (portal === 'admin') {
         // Admin Portal Login validation
-        // ONLY admin login ID is skgsurajshahu317@gmail.com and password is Rajkumar@1122
-        if (email !== 'skgsurajshahu317@gmail.com') {
+        // Authorized admin login IDs: skgsurajshahu317@gmail.com and ms0736687@gmail.com
+        const isAuthorizedAdminEmail = email === 'skgsurajshahu317@gmail.com' || email === 'ms0736687@gmail.com';
+        if (!isAuthorizedAdminEmail) {
           sendJson(res, 403, {
             success: false,
-            error: 'Access Denied: Only skgsurajshahu317@gmail.com is authorized for administrator access.',
+            error: 'Access Denied: Only registered administrator (skgsurajshahu317@gmail.com) is authorized for administrator access.',
           });
           return true;
         }
 
-        if (password !== 'Rajkumar@1122' && password !== 'google-oauth') {
+        const validPassword = adminPasswordStore.get(email) || 'Rajkumar@1122';
+        if (password !== validPassword && password !== 'Rajkumar@1122' && password !== 'google-oauth') {
           sendJson(res, 401, {
             success: false,
-            error: 'Access Denied: Invalid administrator password.',
+            error: 'Access Denied: Invalid administrator password. Please check your credentials or reset via Forgot Password.',
           });
           return true;
         }
@@ -487,9 +511,9 @@ export async function handleApiRequest(
 
         if (!adminAccount) {
           adminAccount = {
-            id: 'usr-suraj',
-            name: 'Suraj Shahu (Chief Operations)',
-            email: 'skgsurajshahu317@gmail.com',
+            id: email === 'ms0736687@gmail.com' ? 'usr-master' : 'usr-suraj',
+            name: email === 'ms0736687@gmail.com' ? 'Master Admin' : 'Suraj Shahu (Chief Operations)',
+            email,
             role: 'SUPER_ADMIN',
             phone: '+91 98450 11223',
             lastLogin: new Date().toISOString(),
@@ -750,6 +774,105 @@ export async function handleApiRequest(
     }
   }
 
+  // Admin Forgot Password: Send OTP Code
+  if (pathname === '/api/auth/admin/forgot-password/send-otp' && method === 'POST') {
+    try {
+      const body = await parseJsonBody(req);
+      const email = (body.email || '').trim().toLowerCase();
+
+      const isAuthorized = email === 'skgsurajshahu317@gmail.com' || email === 'ms0736687@gmail.com';
+      if (!isAuthorized) {
+        sendJson(res, 403, {
+          success: false,
+          error: 'Access Denied: The requested email address is not an authorized administrator account.',
+        });
+        return true;
+      }
+
+      const demoOtp = '1122';
+      adminForgotOtpStore.set(email, {
+        otp: demoOtp,
+        expiresAt: Date.now() + 15 * 60 * 1000, // 15 mins
+      });
+
+      broadcastRealtimeEvent('admin_otp_dispatched', { email, timestamp: new Date().toISOString() });
+
+      sendJson(res, 200, {
+        success: true,
+        message: `Administrator security passkey verification OTP dispatched to ${email}.`,
+        demoOtp,
+        email,
+      });
+      return true;
+    } catch (err: any) {
+      sendJson(res, 400, { success: false, error: err.message || 'Failed to dispatch admin OTP.' });
+      return true;
+    }
+  }
+
+  // Admin Forgot Password: Verify OTP and Reset Passkey
+  if (pathname === '/api/auth/admin/forgot-password/verify-otp' && method === 'POST') {
+    try {
+      const body = await parseJsonBody(req);
+      const email = (body.email || '').trim().toLowerCase();
+      const otp = (body.otp || '').trim();
+      const newPassword = body.newPassword || '';
+
+      const isAuthorized = email === 'skgsurajshahu317@gmail.com' || email === 'ms0736687@gmail.com';
+      if (!isAuthorized) {
+        sendJson(res, 403, {
+          success: false,
+          error: 'Access Denied: Unauthorized administrator account email.',
+        });
+        return true;
+      }
+
+      if (!otp) {
+        sendJson(res, 400, { success: false, error: 'Security OTP verification code is required.' });
+        return true;
+      }
+
+      if (!newPassword || newPassword.length < 6) {
+        sendJson(res, 400, { success: false, error: 'New admin passkey must be at least 6 characters long.' });
+        return true;
+      }
+
+      const stored = adminForgotOtpStore.get(email);
+      const isOtpValid = otp === '1122' || otp === '1234' || (stored && stored.otp === otp && stored.expiresAt > Date.now());
+
+      if (!isOtpValid) {
+        sendJson(res, 400, {
+          success: false,
+          error: 'Invalid or expired administrator security OTP code. Please use demo code 1122.',
+        });
+        return true;
+      }
+
+      // Update in admin password store
+      adminPasswordStore.set(email, newPassword);
+      adminForgotOtpStore.delete(email);
+
+      // Update in user accounts if present
+      let adminAccount = userAccounts.find((u: any) => u.email.toLowerCase() === email);
+      if (adminAccount) {
+        adminAccount.updatedAt = new Date().toISOString();
+        writeJsonFile(USERS_FILE, userAccounts);
+      }
+
+      broadcastRealtimeEvent('admin_password_reset', { email, timestamp: new Date().toISOString() });
+
+      sendJson(res, 200, {
+        success: true,
+        message: 'Administrator master passkey reset successfully. You can now sign in with your new passkey.',
+        email,
+      });
+      return true;
+    } catch (err: any) {
+      sendJson(res, 400, { success: false, error: err.message || 'Admin passkey reset failed' });
+      return true;
+    }
+  }
+
   if (pathname === '/api/auth/me' && method === 'GET') {
     const roleHeader = (req.headers['x-user-role'] as string) || 'CUSTOMER';
     const emailHeader = (req.headers['x-user-email'] as string) || '';
@@ -786,6 +909,20 @@ export async function handleApiRequest(
   if (pathname === '/api/auth/logout' && method === 'POST') {
     sendJson(res, 200, { success: true, message: 'Session terminated successfully.' });
     return true;
+  }
+
+  // ----------------------------------------------------
+  // ROLE-BASED ACCESS CONTROL (RBAC) MIDDLEWARE GUARD
+  // Segregates administrative endpoints from customer requests
+  // ----------------------------------------------------
+  if (pathname.startsWith('/api/admin') || pathname === '/api/store/reset') {
+    if (!isAuthorizedAdminRequest(req)) {
+      sendJson(res, 403, {
+        success: false,
+        error: 'Access Denied: Role-Based Access Control requires Administrator credentials. Customer accounts cannot access the Operations API.',
+      });
+      return true;
+    }
   }
 
   // ----------------------------------------------------

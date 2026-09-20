@@ -179,6 +179,49 @@ export async function saveCustomerToFirestore(customer: Partial<Customer> & { ui
 }
 
 // ==========================================
+// AUDIT LOGS & USER ACTIONS LOGGING
+// ==========================================
+export interface UserActionLog {
+  id: string;
+  action: string;
+  portal: 'ADMIN' | 'CUSTOMER';
+  userEmail: string;
+  userId?: string;
+  timestamp: string;
+  details?: string;
+}
+
+export async function logUserActionToFirestore(
+  action: string,
+  portal: 'ADMIN' | 'CUSTOMER',
+  userEmail: string,
+  userId?: string,
+  details?: string | Record<string, any>
+): Promise<void> {
+  const logId = `log-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+  const path = `audit_logs/${logId}`;
+  const logEntry: UserActionLog = {
+    id: logId,
+    action,
+    portal,
+    userEmail: userEmail || 'anonymous',
+    userId: userId || 'unknown',
+    timestamp: new Date().toISOString(),
+    details: typeof details === 'object' ? JSON.stringify(details) : (details || ''),
+  };
+
+  try {
+    await setDoc(doc(db, 'audit_logs', logId), logEntry);
+  } catch (err) {
+    if (isOfflineOrUnavailable(err)) {
+      console.info('[Firestore] Offline mode: audit log queued locally:', action);
+      return;
+    }
+    console.warn('[Firestore] Audit log sync notice:', err);
+  }
+}
+
+// ==========================================
 // COUPONS
 // ==========================================
 export async function fetchCouponsFromFirestore(): Promise<Coupon[]> {

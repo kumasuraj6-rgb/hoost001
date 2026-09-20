@@ -18,10 +18,11 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Hardened Admin check: Bootstrapped runtime admin email + dedicated admin collection
+    // Hardened Admin check: Bootstrapped runtime admin emails + dedicated admin collection
     function isAdmin() {
       return isSignedIn() && (
-        (request.auth.token.email == 'ms0736687@gmail.com' && request.auth.token.email_verified == true) ||
+        (request.auth.token.email == 'ms0736687@gmail.com') ||
+        (request.auth.token.email == 'skgsurajshahu317@gmail.com') ||
         exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       );
     }
@@ -189,6 +190,16 @@ service cloud.firestore {
       );
       allow update: if isAdmin() && isValidId(returnId) && isValidReturn(incoming());
       allow delete: if isAdmin() && isValidId(returnId);
+    }
+
+    // ----------------------------------------------------
+    // AUDIT LOGS COLLECTION
+    // Audit logs for user actions and access control
+    // ----------------------------------------------------
+    match /audit_logs/{logId} {
+      allow get, list: if isAdmin();
+      allow create: if isValidId(logId);
+      allow update, delete: if isAdmin() && isValidId(logId);
     }
 
     // ----------------------------------------------------

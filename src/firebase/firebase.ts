@@ -1,5 +1,15 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, sendPasswordResetEmail } from 'firebase/auth';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  confirmPasswordReset,
+  updatePassword,
+} from 'firebase/auth';
 import { initializeFirestore, getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
@@ -139,13 +149,46 @@ export async function logoutFirebaseUser() {
   }
 }
 
-// Helper for Password Reset
+// Helper for Email/Password Sign-In
+export async function loginWithFirebaseEmailPassword(email: string, password: string) {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    return userCredential.user;
+  } catch (error: any) {
+    console.warn('[Firebase Auth] Email/Password Sign-In notice:', error?.code || error?.message);
+    throw error;
+  }
+}
+
+// Helper for Email/Password Registration
+export async function registerWithFirebaseEmailPassword(email: string, password: string) {
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    return userCredential.user;
+  } catch (error: any) {
+    console.warn('[Firebase Auth] Email/Password Registration notice:', error?.code || error?.message);
+    throw error;
+  }
+}
+
+// Helper for Password Reset Email Dispatch
 export async function sendFirebasePasswordReset(email: string): Promise<boolean> {
   try {
     await sendPasswordResetEmail(auth, email);
     return true;
   } catch (error: any) {
     console.warn('[Firebase Auth] Password reset note:', error?.message || error);
+    return false;
+  }
+}
+
+// Helper for Resetting Password with OOB Code
+export async function resetFirebasePasswordWithCode(oobCode: string, newPassword: string): Promise<boolean> {
+  try {
+    await confirmPasswordReset(auth, oobCode, newPassword);
+    return true;
+  } catch (error: any) {
+    console.warn('[Firebase Auth] Password confirmation reset note:', error?.message || error);
     return false;
   }
 }

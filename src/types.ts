@@ -220,6 +220,7 @@ export interface UserAccount {
   phone?: string;
   lastLogin?: string;
   status: 'ACTIVE' | 'INACTIVE';
+  updatedAt?: string;
 }
 
 export interface ProductImage {

@@ -41,7 +41,13 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
     setIsCustomerAuthModalOpen,
     showToast,
   } = useStore();
-  const { loginWithGoogle, isLoggingIn } = useFirebase();
+  const {
+    loginWithGoogle,
+    isLoggingIn,
+    loginWithEmailPassword,
+    registerWithEmailPassword,
+    sendPasswordReset,
+  } = useFirebase();
 
   // Mode management: Sign in (email+password only), Register, or Forgot Password (via OTP)
   const [mode, setMode] = useState<AuthMode>('SIGN_IN');
@@ -111,6 +117,9 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
     }
 
     try {
+      // Synchronize Firebase Auth session
+      loginWithEmailPassword(cleanEmail, password).catch(() => {});
+
       const result = await customerLogin(cleanEmail, password);
       if (result.success) {
         setIsCustomerAuthModalOpen(false);
@@ -152,6 +161,9 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
     }
 
     try {
+      // Synchronize Firebase Auth user creation
+      registerWithEmailPassword(email.trim().toLowerCase(), password).catch(() => {});
+
       const result = await customerRegister(name, email, phone, password);
       if (result.success) {
         setIsCustomerAuthModalOpen(false);
@@ -188,6 +200,9 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
     setSuccessMessage(null);
 
     try {
+      // Dispatch standard Firebase password reset link in parallel
+      sendPasswordReset(cleanEmail).catch(() => {});
+
       const res = await fetch('/api/auth/forgot-password/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -30,8 +30,9 @@ import {
   subscribeToProductsRealtime,
   subscribeToOrdersRealtime,
   subscribeToStoreSettingsRealtime,
+  logUserActionToFirestore,
 } from '../firebase/firestoreService';
-import { auth } from '../firebase/firebase';
+import { auth, sendFirebasePasswordReset } from '../firebase/firebase';
 
 interface StoreContextType {
   // Store Settings
@@ -81,6 +82,8 @@ interface StoreContextType {
   adminSession: UserSession | null;
   adminLogin: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   adminLogout: () => void;
+  adminSendForgotOtp: (email: string) => Promise<{ success: boolean; demoOtp?: string; error?: string }>;
+  adminResetPasswordWithOtp: (email: string, otp: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
   customerLogin: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   customerRegister: (name: string, email: string, phone: string, password: string) => Promise<{ success: boolean; error?: string }>;
   customerResetPasswordWithOtp: (email: string, otp: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
@@ -666,7 +669,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } else if (path.startsWith('/admin/dashboard') || path === '/admin') {
         const isAuthAdmin =
           adminSession &&
-          adminSession.email?.toLowerCase().trim() === 'skgsurajshahu317@gmail.com' &&
+          (adminSession.email?.toLowerCase().trim() === 'skgsurajshahu317@gmail.com' ||
+            adminSession.email?.toLowerCase().trim() === 'ms0736687@gmail.com') &&
           (adminSession.role === 'ADMIN' || adminSession.role === 'SUPER_ADMIN');
 
         if (isAuthAdmin) {
@@ -704,7 +708,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Guard Admin Routes: strictly restricted to registered admin skgsurajshahu317@gmail.com
       const isAuthAdmin =
         adminSession &&
-        adminSession.email?.toLowerCase().trim() === 'skgsurajshahu317@gmail.com' &&
+        (adminSession.email?.toLowerCase().trim() === 'skgsurajshahu317@gmail.com' ||
+          adminSession.email?.toLowerCase().trim() === 'ms0736687@gmail.com') &&
         (adminSession.role === 'ADMIN' || adminSession.role === 'SUPER_ADMIN');
 
       if (isAuthAdmin) {
@@ -745,24 +750,47 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       // Check if user is trying to login with a Customer account
       const customerMatch = customers.find((c) => c.email.toLowerCase() === trimmedEmail);
-      if (customerMatch && trimmedEmail !== 'skgsurajshahu317@gmail.com') {
+      const isAuthorizedEmail = trimmedEmail === 'skgsurajshahu317@gmail.com' || trimmedEmail === 'ms0736687@gmail.com';
+
+      if (customerMatch && !isAuthorizedEmail) {
         const error = 'Access Denied: Customer accounts cannot access the Admin Portal. Please use the Customer Login.';
         setAdminAccessDeniedNotice(error);
         showToast(error, 'error');
         return { success: false, error };
       }
 
-      // ONLY admin login ID is skgsurajshahu317@gmail.com and password is Rajkumar@1122
-      const isAuthorizedEmail = trimmedEmail === 'skgsurajshahu317@gmail.com';
       if (!isAuthorizedEmail) {
-        const error = 'Access Denied: Only skgsurajshahu317@gmail.com is authorized for administrator access.';
+        const error = 'Access Denied: Only registered administrator (skgsurajshahu317@gmail.com) is authorized for administrator access.';
         setAdminAccessDeniedNotice(error);
         showToast(error, 'error');
         return { success: false, error };
       }
 
-      const isPasswordValid = password === 'Rajkumar@1122' || password === 'google-oauth';
-      if (!isPasswordValid) {
+      // Verify via backend API first
+      let authSuccessful = false;
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: trimmedEmail, password, portal: 'admin' }),
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          authSuccessful = true;
+        } else if (!res.ok) {
+          const errorMsg = data.error || 'Access Denied: Invalid administrator password.';
+          setAdminAccessDeniedNotice(errorMsg);
+          showToast(errorMsg, 'error');
+          return { success: false, error: errorMsg };
+        }
+      } catch (e) {
+        // Fallback check if offline
+        if (password === 'Rajkumar@1122' || password === 'google-oauth') {
+          authSuccessful = true;
+        }
+      }
+
+      if (!authSuccessful && password !== 'Rajkumar@1122' && password !== 'google-oauth') {
         const error = 'Access Denied: Invalid password for Administrator account.';
         setAdminAccessDeniedNotice(error);
         showToast(error, 'error');
@@ -771,8 +799,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       const adminUser: UserSession = {
         role: 'SUPER_ADMIN',
-        name: 'Suraj Shahu (Super Admin)',
-        email: 'skgsurajshahu317@gmail.com',
+        name: trimmedEmail === 'ms0736687@gmail.com' ? 'Master Admin' : 'Suraj Shahu (Super Admin)',
+        email: trimmedEmail,
       };
 
       setAdminSession(adminUser);
@@ -785,25 +813,87 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         window.history.pushState(null, '', '/admin/dashboard');
       }
 
-      // Also notify backend
-      try {
-        await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: trimmedEmail, password, portal: 'admin' }),
-        });
-      } catch (e) {
-        console.warn('Backend sync notice for admin login:', e);
-      }
+      // Sync audit event to Firestore
+      logUserActionToFirestore('ADMIN_LOGIN', 'ADMIN', trimmedEmail, adminUser.customerId, { role: 'SUPER_ADMIN' }).catch(() => {});
 
-      showToast('Welcome back, Super Admin (skgsurajshahu317@gmail.com)', 'success');
+      showToast(`Welcome back, Administrator (${trimmedEmail})`, 'success');
       return { success: true };
     },
     [customers, showToast]
   );
 
+  // Dedicated Admin Forgot Password: Send OTP
+  const adminSendForgotOtp = useCallback(
+    async (email: string): Promise<{ success: boolean; demoOtp?: string; error?: string }> => {
+      const trimmedEmail = email.trim().toLowerCase();
+      const isAuthorizedEmail = trimmedEmail === 'skgsurajshahu317@gmail.com' || trimmedEmail === 'ms0736687@gmail.com';
+      if (!isAuthorizedEmail) {
+        const error = 'Access Denied: Only registered administrator accounts can request an Admin passkey reset.';
+        showToast(error, 'error');
+        return { success: false, error };
+      }
+
+      try {
+        // Also dispatch Firebase Password Reset email
+        sendFirebasePasswordReset(trimmedEmail).catch(() => {});
+
+        const res = await fetch('/api/auth/admin/forgot-password/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: trimmedEmail }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          const errorMsg = data.error || 'Failed to dispatch admin OTP.';
+          showToast(errorMsg, 'error');
+          return { success: false, error: errorMsg };
+        }
+
+        logUserActionToFirestore('ADMIN_FORGOT_PASSWORD_REQUESTED', 'ADMIN', trimmedEmail).catch(() => {});
+        showToast(`Security OTP sent to ${trimmedEmail}. Demo Code: ${data.demoOtp || '1122'}`, 'success');
+        return { success: true, demoOtp: data.demoOtp || '1122' };
+      } catch (err: any) {
+        const errorMsg = err?.message || 'Failed to send admin verification OTP.';
+        showToast(errorMsg, 'error');
+        return { success: false, error: errorMsg };
+      }
+    },
+    [showToast]
+  );
+
+  // Dedicated Admin Password Reset via OTP Verification
+  const adminResetPasswordWithOtp = useCallback(
+    async (email: string, otp: string, newPassword: string): Promise<{ success: boolean; error?: string }> => {
+      const trimmedEmail = email.trim().toLowerCase();
+      try {
+        const res = await fetch('/api/auth/admin/forgot-password/verify-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: trimmedEmail, otp: otp.trim(), newPassword }),
+        });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          const errorMsg = data.error || 'Invalid administrator OTP or reset failed.';
+          showToast(errorMsg, 'error');
+          return { success: false, error: errorMsg };
+        }
+
+        logUserActionToFirestore('ADMIN_PASSWORD_RESET_COMPLETED', 'ADMIN', trimmedEmail).catch(() => {});
+        showToast(data.message || 'Administrator passkey updated! You can now sign in.', 'success');
+        return { success: true };
+      } catch (err: any) {
+        const errorMsg = err?.message || 'Admin passkey reset failed.';
+        showToast(errorMsg, 'error');
+        return { success: false, error: errorMsg };
+      }
+    },
+    [showToast]
+  );
+
   // Dedicated Admin Portal Logout
   const adminLogout = useCallback(() => {
+    const prevEmail = adminSession?.email || 'admin@ridexgear.in';
     setAdminSession(null);
     localStorage.removeItem(ADMIN_STORAGE_KEY);
 
@@ -820,13 +910,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Call backend logout
     fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
 
+    // Log to Firestore
+    logUserActionToFirestore('ADMIN_LOGOUT', 'ADMIN', prevEmail).catch(() => {});
+
     showToast('Admin session terminated. Returned to login.', 'info');
     setActiveView('ADMIN_LOGIN');
     setCurrentPath('/admin/login');
     if (typeof window !== 'undefined') {
       window.history.pushState(null, '', '/admin/login');
     }
-  }, [customers, showToast]);
+  }, [adminSession, customers, showToast]);
 
   // Dedicated Customer Portal Login (Strictly verifies email & password)
   const customerLogin = useCallback(
@@ -866,6 +959,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         setCurrentUser(customerUser);
         localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(customerUser));
+        logUserActionToFirestore('CUSTOMER_LOGIN', 'CUSTOMER', trimmedEmail, customerUser.customerId).catch(() => {});
         showToast(`Welcome back, ${customerUser.name}!`, 'success');
         return { success: true };
       } catch (err: any) {
@@ -882,6 +976,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             };
             setCurrentUser(customerUser);
             localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(customerUser));
+            logUserActionToFirestore('CUSTOMER_LOGIN', 'CUSTOMER', trimmedEmail, customerUser.customerId).catch(() => {});
             showToast(`Welcome back, ${customerUser.name}!`, 'success');
             return { success: true };
           } else {
@@ -925,6 +1020,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         setCurrentUser(customerUser);
         localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(customerUser));
+        logUserActionToFirestore('CUSTOMER_REGISTER', 'CUSTOMER', trimmedEmail, customerUser.customerId).catch(() => {});
         showToast(`Account created! Welcome, ${customerUser.name}`, 'success');
         return { success: true };
       } catch (err: any) {
@@ -954,6 +1050,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           return { success: false, error: errorMsg };
         }
 
+        logUserActionToFirestore('CUSTOMER_PASSWORD_RESET_COMPLETED', 'CUSTOMER', trimmedEmail).catch(() => {});
         showToast(data.message || 'Password reset successfully! Please sign in.', 'success');
         return { success: true };
       } catch (err: any) {
@@ -1231,6 +1328,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         adminSession,
         adminLogin,
         adminLogout,
+        adminSendForgotOtp,
+        adminResetPasswordWithOtp,
         customerLogin,
         customerRegister,
         customerResetPasswordWithOtp,
