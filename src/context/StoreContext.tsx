@@ -261,16 +261,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Customer Session (Customer Portal)
   const [currentUser, setCurrentUser] = useState<UserSession>(() => {
+    const guestUser: UserSession = {
+      role: 'CUSTOMER',
+      customerId: 'guest',
+      name: 'Guest Rider',
+      email: '',
+    };
     if (typeof window === 'undefined') {
-      return { role: 'CUSTOMER', customerId: 'cust-1', name: 'Vikramaditya Rathore', email: 'vikram.rider@example.com' };
+      return guestUser;
     }
     try {
       const saved = localStorage.getItem(CUSTOMER_STORAGE_KEY);
-      return saved
-        ? JSON.parse(saved)
-        : { role: 'CUSTOMER', customerId: 'cust-1', name: 'Vikramaditya Rathore', email: 'vikram.rider@example.com' };
+      return saved ? JSON.parse(saved) : guestUser;
     } catch {
-      return { role: 'CUSTOMER', customerId: 'cust-1', name: 'Vikramaditya Rathore', email: 'vikram.rider@example.com' };
+      return guestUser;
     }
   });
 
@@ -788,12 +792,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
       } catch (e) {
         // Fallback check if offline
-        if (password === 'Rajkumar@1122' || password === 'google-oauth') {
+        if (password === 'Rajkumar@1122') {
           authSuccessful = true;
         }
       }
 
-      if (!authSuccessful && password !== 'Rajkumar@1122' && password !== 'google-oauth') {
+      if (!authSuccessful && password !== 'Rajkumar@1122') {
         const error = 'Access Denied: Invalid password for Administrator account.';
         setAdminAccessDeniedNotice(error);
         showToast(error, 'error');
@@ -900,13 +904,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setAdminSession(null);
     localStorage.removeItem(ADMIN_STORAGE_KEY);
 
-    // Reset current active session to customer
-    const cust = customers[0];
+    // Reset current active session to guest
     const defaultCust: UserSession = {
       role: 'CUSTOMER',
-      customerId: cust?.id || 'cust-1',
-      name: cust?.name || 'Vikramaditya Rathore',
-      email: cust?.email || 'vikram.rider@example.com',
+      customerId: 'guest',
+      name: 'Guest Rider',
+      email: '',
     };
     setCurrentUser(defaultCust);
 
@@ -969,8 +972,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         // Fallback check against cached customers
         const cust = customers.find((c) => c.email && c.email.toLowerCase() === trimmedEmail);
         if (cust) {
-          const expectedPass = (cust as any).password || 'RiderPass2026';
-          if (password === expectedPass || password === 'RiderPass2026') {
+          const expectedPass = (cust as any).password;
+          if (expectedPass && password === expectedPass) {
             const customerUser: UserSession = {
               role: 'CUSTOMER',
               customerId: cust.id,
@@ -1085,16 +1088,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         showToast('Access Denied: Direct role switching to Admin is disabled. Only registered admin skgsurajshahu317@gmail.com can log in via /admin/login.', 'error');
         return;
       } else {
-        const cust = customers.find((c) => c.id === customerId) || customers[0];
-        const custUser: UserSession = {
-          role: 'CUSTOMER',
-          customerId: cust?.id || 'cust-1',
-          name: cust?.name || 'Vikramaditya Rathore',
-          email: cust?.email || 'vikram.rider@example.com',
-        };
-        setCurrentUser(custUser);
-        localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(custUser));
-        showToast(`Logged in as customer (${cust?.name})`, 'info');
+        const cust = customers.find((c) => c.id === customerId);
+        if (cust) {
+          const custUser: UserSession = {
+            role: 'CUSTOMER',
+            customerId: cust.id,
+            name: cust.name,
+            email: cust.email,
+          };
+          setCurrentUser(custUser);
+          localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(custUser));
+          showToast(`Logged in as customer (${cust.name})`, 'info');
+        }
       }
     },
     [customers, storeSettings.brandEmail, showToast]

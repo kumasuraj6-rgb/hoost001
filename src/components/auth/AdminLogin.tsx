@@ -10,13 +10,11 @@ import {
   KeyRound,
   Eye,
   EyeOff,
-  Sparkles,
   RefreshCw,
   ArrowLeft,
   Key,
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
-import { useFirebase } from '../../context/FirebaseContext';
 
 interface AdminLoginProps {
   accessDeniedMessage?: string | null;
@@ -37,11 +35,10 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
     navigate,
     setActiveView,
   } = useStore();
-  const { loginWithGoogle, isLoggingIn } = useFirebase();
 
   const [mode, setMode] = useState<AdminAuthMode>('LOGIN');
-  const [email, setEmail] = useState('skgsurajshahu317@gmail.com');
-  const [password, setPassword] = useState('Rajkumar@1122');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -52,42 +49,6 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
   const [resetOtp, setResetOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-
-  const handleGoogleAdminLogin = async () => {
-    try {
-      setErrorMessage(null);
-      const user = await loginWithGoogle();
-      if (user && user.email) {
-        const emailLower = user.email.toLowerCase();
-        const isAuthorized =
-          emailLower === 'skgsurajshahu317@gmail.com' || emailLower === 'ms0736687@gmail.com';
-
-        if (isAuthorized) {
-          const result = await adminLogin(user.email, 'google-oauth');
-          if (result.success) {
-            setSuccessMessage(`Welcome Admin (${user.email})! Verified via Google.`);
-            setTimeout(() => {
-              if (onSuccessRedirect) {
-                onSuccessRedirect();
-              } else {
-                setActiveView('ADMIN');
-                navigate('/admin/dashboard');
-              }
-            }, 500);
-            return;
-          }
-        }
-        setErrorMessage(`Account ${user.email} is not authorized. Only registered administrator accounts can access this portal.`);
-      }
-    } catch (err: any) {
-      if (
-        err?.code !== 'auth/popup-closed-by-user' &&
-        err?.code !== 'auth/cancelled-popup-request'
-      ) {
-        setErrorMessage(err?.message || 'Google administrator authentication could not be completed.');
-      }
-    }
-  };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,12 +122,6 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
     }
   };
 
-  const handleAutoFillAdmin = () => {
-    setEmail('skgsurajshahu317@gmail.com');
-    setPassword('Rajkumar@1122');
-    setErrorMessage(null);
-  };
-
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col justify-center items-center p-4 sm:p-6 relative overflow-hidden font-sans">
       {/* Background architectural grid pattern */}
@@ -234,7 +189,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="skgsurajshahu317@gmail.com"
+                      placeholder="admin@example.com"
                       className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-amber-500 transition-colors"
                       id="admin-login-email"
                     />
@@ -299,58 +254,6 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
                   )}
                 </button>
               </form>
-
-              {/* Quick Helper Options */}
-              <div className="pt-4 border-t border-neutral-800/80 space-y-3">
-                {/* Google Admin Login */}
-                <button
-                  type="button"
-                  onClick={handleGoogleAdminLogin}
-                  disabled={isLoggingIn}
-                  className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-neutral-100 active:scale-[0.99] text-neutral-900 font-bold text-xs flex items-center justify-center gap-2.5 transition-all shadow-md cursor-pointer disabled:opacity-50"
-                  id="google-admin-signin-btn"
-                >
-                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                    <path
-                      fill="#4285F4"
-                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                    />
-                    <path
-                      fill="#EA4335"
-                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                    />
-                  </svg>
-                  <span>{isLoggingIn ? 'Verifying with Google...' : 'Sign In with Google Admin'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleAutoFillAdmin}
-                  className="w-full py-2.5 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
-                  id="autofill-admin-btn"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>Auto-fill Admin (skgsurajshahu317@gmail.com)</span>
-                </button>
-
-                <div className="p-3 rounded-xl bg-neutral-950 border border-neutral-800/80 text-[11px] text-neutral-400 flex items-center justify-between">
-                  <div>
-                    <span className="text-neutral-300 font-semibold block">RBAC Protected Administrator:</span>
-                    <span className="text-amber-400 font-mono text-[11px]">skgsurajshahu317@gmail.com</span>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-800 text-emerald-400 text-[10px] font-bold uppercase tracking-wider">
-                    Authorized
-                  </span>
-                </div>
-              </div>
             </>
           )}
 
@@ -367,7 +270,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="skgsurajshahu317@gmail.com"
+                  placeholder="admin@example.com"
                   className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-amber-500 transition-colors"
                   id="admin-forgot-email-input"
                 />

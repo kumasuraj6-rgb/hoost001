@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Users,
   Shield,
@@ -18,6 +18,20 @@ import { UserAccount, UserRole } from '../../types';
 
 export const UsersRolesTab: React.FC = () => {
   const { usersList, saveUser, currentUser, loginAs, showToast } = useStore();
+
+  const cleanStaffList = useMemo(() => {
+    const seen = new Set<string>();
+    return (usersList || []).filter((u) => {
+      if (!u) return false;
+      if (u.id === 'usr-3' || (u.role as string) === 'CUSTOMER' || u.email?.toLowerCase() === 'vikram.rider@example.com') {
+        return false;
+      }
+      const key = (u.id || u.email || '').toLowerCase().trim();
+      if (key && seen.has(key)) return false;
+      if (key) seen.add(key);
+      return true;
+    });
+  }, [usersList]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
@@ -99,7 +113,7 @@ export const UsersRolesTab: React.FC = () => {
             Full root privilege across company entity details, GSTIN, payment gateways, team management, and product deletions.
           </p>
           <div className="text-[11px] text-neutral-500 pt-1 font-mono">
-            {usersList.filter((u) => u.role === 'SUPER_ADMIN').length} Super Admin(s) active
+            {cleanStaffList.filter((u) => u.role === 'SUPER_ADMIN').length} Super Admin(s) active
           </div>
         </div>
 
@@ -112,7 +126,7 @@ export const UsersRolesTab: React.FC = () => {
             Manages day-to-day inventory, product updates, order processing, shipping generation, and return requests.
           </p>
           <div className="text-[11px] text-neutral-500 pt-1 font-mono">
-            {usersList.filter((u) => u.role === 'ADMIN').length} Store Operator(s)
+            {cleanStaffList.filter((u) => u.role === 'ADMIN').length} Store Operator(s)
           </div>
         </div>
 
@@ -136,7 +150,7 @@ export const UsersRolesTab: React.FC = () => {
           <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-200">
             Registered Administrators & Staff Accounts
           </h3>
-          <span className="text-xs text-neutral-500 font-mono">{usersList.length} Team Members</span>
+          <span className="text-xs text-neutral-500 font-mono">{cleanStaffList.length} Team Members</span>
         </div>
 
         <div className="overflow-x-auto">
@@ -151,8 +165,8 @@ export const UsersRolesTab: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-800/80">
-              {usersList.map((user) => (
-                <tr key={user.id} className="hover:bg-neutral-850/50 transition-colors">
+              {cleanStaffList.map((user, idx) => (
+                <tr key={`${user.id || 'usr'}-${user.email || idx}`} className="hover:bg-neutral-850/50 transition-colors">
                   <td className="py-3.5 px-4">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-neutral-800 text-amber-400 font-bold flex items-center justify-center text-xs">

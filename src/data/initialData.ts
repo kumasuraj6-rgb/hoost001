@@ -1151,6 +1151,15 @@ export const initialMediaItems = [
 
 export const initialUserAccounts = [
   {
+    id: 'usr-master',
+    name: 'Master Admin',
+    email: 'ms0736687@gmail.com',
+    role: 'SUPER_ADMIN' as const,
+    phone: '+91 98450 11223',
+    lastLogin: '2026-03-11T09:00:00Z',
+    status: 'ACTIVE' as const,
+  },
+  {
     id: 'usr-0',
     name: 'Suraj Shahu (Chief Operations)',
     email: 'skgsurajshahu317@gmail.com',
@@ -1160,12 +1169,12 @@ export const initialUserAccounts = [
     status: 'ACTIVE' as const,
   },
   {
-    id: 'usr-3',
-    name: 'Vikramaditya Rathore (Customer)',
-    email: 'vikram.rider@example.com',
-    role: 'CUSTOMER' as const,
+    id: 'usr-1',
+    name: 'RideX Inventory & Operations',
+    email: 'operations@ridexgear.in',
+    role: 'ADMIN' as const,
     phone: '+91 98765 43210',
-    lastLogin: '2026-03-11T02:00:00Z',
+    lastLogin: '2026-03-11T08:00:00Z',
     status: 'ACTIVE' as const,
   },
 ];

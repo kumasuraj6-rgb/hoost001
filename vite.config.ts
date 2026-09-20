@@ -28,11 +28,17 @@ function apiServerPlugin(): Plugin {
 
 export default defineConfig(() => {
   return {
+    base: '/',
     plugins: [react(), tailwindcss(), apiServerPlugin()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
       },
+    },
+    build: {
+      outDir: 'dist',
+      emptyOutDir: true,
+      sourcemap: false,
     },
     server: {
       host: '0.0.0.0',

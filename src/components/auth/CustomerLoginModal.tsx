@@ -6,7 +6,6 @@ import {
   X,
   CheckCircle2,
   ArrowRight,
-  Sparkles,
   Eye,
   EyeOff,
   ArrowLeft,
@@ -53,10 +52,10 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
   const [mode, setMode] = useState<AuthMode>('SIGN_IN');
 
   // Sign In & Register Form Fields
-  const [name, setName] = useState('Vikramaditya Rathore');
-  const [email, setEmail] = useState('vikram.rider@example.com');
-  const [password, setPassword] = useState('RiderPass2026');
-  const [phone, setPhone] = useState('9876543210');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   // Forgot Password via OTP States
@@ -290,15 +289,6 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
     }
   };
 
-  // Quick fill demo customer credentials
-  const handleQuickCustomer = () => {
-    setEmail('vikram.rider@example.com');
-    setName('Vikramaditya Rathore');
-    setPassword('RiderPass2026');
-    setPhone('9876543210');
-    setErrorMessage(null);
-  };
-
   // Google OAuth Login
   const handleGoogleLogin = async () => {
     try {
@@ -402,7 +392,7 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. vikram.rider@example.com"
+                  placeholder="Enter your email address"
                   className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-neutral-100 focus:border-amber-500 focus:outline-none transition-colors"
                   id="customer-login-email"
                 />
@@ -512,32 +502,20 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
               </button>
             </div>
 
-            {/* Demo Customer & Register Links */}
-            <div className="pt-2.5 border-t border-neutral-800 text-center space-y-2">
+            {/* Register Link */}
+            <div className="pt-2.5 border-t border-neutral-800 text-center">
               <button
                 type="button"
-                onClick={handleQuickCustomer}
-                className="text-[11px] text-neutral-400 hover:text-amber-400 transition-colors inline-flex items-center gap-1.5 cursor-pointer"
-                id="quick-fill-customer-btn"
+                onClick={() => {
+                  setErrorMessage(null);
+                  setSuccessMessage(null);
+                  setMode('REGISTER');
+                }}
+                className="text-xs text-neutral-300 hover:text-white underline underline-offset-4 cursor-pointer"
+                id="toggle-auth-mode-btn"
               >
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span>Use Demo Customer Credentials (Vikramaditya)</span>
+                Don't have an account? Create one
               </button>
-
-              <div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setErrorMessage(null);
-                    setSuccessMessage(null);
-                    setMode('REGISTER');
-                  }}
-                  className="text-xs text-neutral-300 hover:text-white underline underline-offset-4 cursor-pointer"
-                  id="toggle-auth-mode-btn"
-                >
-                  Don't have an account? Create one
-                </button>
-              </div>
             </div>
           </div>
         )}
@@ -560,7 +538,7 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
                     required
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
-                    placeholder="e.g. vikram.rider@example.com"
+                    placeholder="Enter your email address"
                     className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-neutral-100 focus:border-amber-500 focus:outline-none transition-colors"
                     id="forgot-email-input"
                   />
@@ -754,7 +732,7 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Vikramaditya Rathore"
+                placeholder="Enter your full name"
                 className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-neutral-100 focus:border-amber-500 focus:outline-none"
                 id="customer-register-name"
               />
@@ -784,7 +762,7 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="vikram.rider@example.com"
+                placeholder="Enter your email address"
                 className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-neutral-100 focus:border-amber-500 focus:outline-none"
                 id="customer-register-email"
               />

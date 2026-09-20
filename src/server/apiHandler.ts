@@ -222,6 +222,23 @@ function writeJsonFile<T>(filePath: string, data: T) {
   }
 }
 
+function sanitizeUserAccounts(users: any[]): UserAccount[] {
+  if (!Array.isArray(users)) return [];
+  const seen = new Set<string>();
+  const clean: UserAccount[] = [];
+  for (const u of users) {
+    if (!u) continue;
+    if (u.id === 'usr-3' || u.email?.toLowerCase() === 'vikram.rider@example.com' || u.role === 'CUSTOMER') {
+      continue;
+    }
+    const key = String(u.id || u.email || '').trim().toLowerCase();
+    if (key && seen.has(key)) continue;
+    if (key) seen.add(key);
+    clean.push(u);
+  }
+  return clean;
+}
+
 // In-memory synced state loaded from file or seed
 let storeSettings = readJsonFile(SETTINGS_FILE, initialStoreSettings);
 let products = readJsonFile(PRODUCTS_FILE, initialProducts);
@@ -230,7 +247,7 @@ let coupons = readJsonFile(COUPONS_FILE, initialCoupons);
 let customers: Customer[] = readJsonFile(CUSTOMERS_FILE, initialCustomers as Customer[]);
 let returns: ReturnRequest[] = readJsonFile(RETURNS_FILE, initialReturnRequests as ReturnRequest[]);
 let mediaItems = readJsonFile(MEDIA_FILE, initialMediaItems);
-let userAccounts: UserAccount[] = readJsonFile(USERS_FILE, initialUserAccounts as UserAccount[]);
+let userAccounts: UserAccount[] = sanitizeUserAccounts(readJsonFile(USERS_FILE, initialUserAccounts as UserAccount[]));
 let gatewayConfig: GatewayConfig = readJsonFile(GATEWAY_FILE, initialGatewayConfig);
 
 // Lazy instantiate Razorpay client only when credentials exist
@@ -514,7 +531,7 @@ export async function handleApiRequest(
         }
 
         const validPassword = adminPasswordStore.get(email) || 'Rajkumar@1122';
-        if (password !== validPassword && password !== 'Rajkumar@1122' && password !== 'google-oauth') {
+        if (password !== validPassword && password !== 'Rajkumar@1122') {
           sendJson(res, 401, {
             success: false,
             error: 'Access Denied: Invalid administrator password. Please check your credentials or reset via Forgot Password.',
@@ -599,8 +616,8 @@ export async function handleApiRequest(
           }
         } else {
           // Verify customer password
-          const expectedPassword = customer.password || 'RiderPass2026';
-          if (password !== expectedPassword && password !== 'RiderPass2026') {
+          const expectedPassword = customer.password;
+          if (!expectedPassword || password !== expectedPassword) {
             sendJson(res, 401, {
               success: false,
               error: 'Incorrect password. Please verify your password or use "Forgot Password" to reset via OTP.',
@@ -2126,30 +2143,34 @@ export async function handleApiRequest(
   // 8. USERS & ROLES
   // ----------------------------------------------------
   if (pathname === '/api/users' && method === 'GET') {
-    sendJson(res, 200, { success: true, count: userAccounts.length, users: userAccounts });
+    const cleanUsers = sanitizeUserAccounts(userAccounts);
+    sendJson(res, 200, { success: true, count: cleanUsers.length, users: cleanUsers });
     return true;
   }
 
   if (pathname === '/api/users' && method === 'POST') {
     try {
       const body = await parseJsonBody(req);
-      const existingIdx = userAccounts.findIndex((u: any) => u.id === body.id || u.email === body.email);
+      userAccounts = sanitizeUserAccounts(userAccounts);
+      const existingIdx = userAccounts.findIndex((u: any) => (body.id && u.id === body.id) || (body.email && u.email.toLowerCase() === body.email.toLowerCase()));
 
       if (existingIdx >= 0) {
         userAccounts[existingIdx] = { ...userAccounts[existingIdx], ...body };
+        userAccounts = sanitizeUserAccounts(userAccounts);
         writeJsonFile(USERS_FILE, userAccounts);
         sendJson(res, 200, { success: true, user: userAccounts[existingIdx], message: 'User updated' });
       } else {
         const newUser: UserAccount = {
-          id: `usr-${Date.now()}`,
-          name: body.name,
-          email: body.email,
+          id: body.id || `usr-${Date.now()}`,
+          name: body.name || 'Store Staff',
+          email: body.email || '',
           role: body.role || 'ADMIN',
           phone: body.phone || '',
           lastLogin: new Date().toISOString(),
           status: 'ACTIVE',
         };
         userAccounts.push(newUser);
+        userAccounts = sanitizeUserAccounts(userAccounts);
         writeJsonFile(USERS_FILE, userAccounts);
         sendJson(res, 201, { success: true, user: newUser, message: 'User account created' });
       }

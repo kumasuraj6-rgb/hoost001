@@ -221,7 +221,7 @@ class StoreService {
     this.customers = safeGet<Customer[]>(STORAGE_KEYS.CUSTOMERS, initialCustomers);
     this.returns = safeGet<ReturnRequest[]>(STORAGE_KEYS.RETURNS, initialReturnRequests);
     this.mediaItems = safeGet<MediaItem[]>(STORAGE_KEYS.MEDIA, initialMediaItems);
-    this.users = safeGet<UserAccount[]>(STORAGE_KEYS.USERS, initialUserAccounts);
+    this.users = this.deduplicateUsers(safeGet<UserAccount[]>(STORAGE_KEYS.USERS, initialUserAccounts));
 
     if (typeof window !== 'undefined') {
       this.syncFromBackend();
@@ -370,7 +370,7 @@ class StoreService {
       // Load users
       const usersRes = await fetch('/api/users', { cache: 'no-store' }).then((r) => r.ok ? r.json() : null).catch(() => null);
       if (usersRes?.success && Array.isArray(usersRes.users)) {
-        this.users = usersRes.users;
+        this.users = this.deduplicateUsers(usersRes.users);
         safeSet(STORAGE_KEYS.USERS, this.users);
       }
 
@@ -1393,17 +1393,44 @@ class StoreService {
   // ==========================================
   // USERS & ROLES
   // ==========================================
+  private deduplicateUsers(users: UserAccount[]): UserAccount[] {
+    if (!Array.isArray(users)) return [];
+    const seenIds = new Set<string>();
+    const seenEmails = new Set<string>();
+    const unique: UserAccount[] = [];
+
+    for (const u of users) {
+      if (!u) continue;
+      // Filter out lingering demo customer seed accounts if present in legacy storage
+      if (u.id === 'usr-3' || u.email === 'vikram.rider@example.com' || (u.role as string) === 'CUSTOMER') {
+        continue;
+      }
+
+      const id = String(u.id || '').trim();
+      const email = String(u.email || '').trim().toLowerCase();
+
+      if (id && seenIds.has(id)) continue;
+      if (email && seenEmails.has(email)) continue;
+
+      if (id) seenIds.add(id);
+      if (email) seenEmails.add(email);
+      unique.push(u);
+    }
+    return unique;
+  }
+
   public getUsers(): UserAccount[] {
-    return [...this.users];
+    return this.deduplicateUsers(this.users);
   }
 
   public async saveUser(userData: Partial<UserAccount>): Promise<{ success: boolean; user?: UserAccount }> {
     let user: UserAccount;
-    const idx = this.users.findIndex((u) => u.id === userData.id || u.email === userData.email);
+    const cleanUsers = this.deduplicateUsers(this.users);
+    const idx = cleanUsers.findIndex((u) => (userData.id && u.id === userData.id) || (userData.email && u.email.toLowerCase() === userData.email.toLowerCase()));
 
     if (idx >= 0) {
-      user = { ...this.users[idx], ...userData };
-      this.users[idx] = user;
+      user = { ...cleanUsers[idx], ...userData };
+      cleanUsers[idx] = user;
     } else {
       user = {
         id: userData.id || `usr-${Date.now()}`,
@@ -1414,9 +1441,10 @@ class StoreService {
         lastLogin: new Date().toISOString(),
         status: 'ACTIVE',
       };
-      this.users.push(user);
+      cleanUsers.push(user);
     }
 
+    this.users = this.deduplicateUsers(cleanUsers);
     safeSet(STORAGE_KEYS.USERS, this.users);
     this.notify();
 
