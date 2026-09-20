@@ -200,23 +200,29 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
     setSuccessMessage(null);
 
     try {
-      const res = await fetch('/api/auth/customer/forgot-password', {
+      const response = await safeFetchJson('/api/auth/customer/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: cleanEmail }),
       });
-      const data = await res.json();
 
-      if (!res.ok || !data.success) {
-        setErrorMessage(data.error || 'Failed to dispatch verification code.');
+      if (!response.ok || !response.data?.success) {
+        setErrorMessage(
+          response.data?.error ||
+            response.error ||
+            'Unable to dispatch verification code. Please check your email configuration or try again.'
+        );
         return;
       }
 
       setForgotStep('VERIFY_OTP');
       setCountdown(30);
       setForgotOtpDigits(['', '', '', '', '', '']);
-      setSuccessMessage(data.message || `A 6-digit verification code has been dispatched to ${cleanEmail}. (Code expires in 10 minutes)`);
-      showToast(data.message || `Verification code sent to ${cleanEmail}.`, 'info');
+      const msg =
+        response.data.message ||
+        `A 6-digit verification code has been dispatched to ${cleanEmail}. (Code expires in 10 minutes)`;
+      setSuccessMessage(msg);
+      showToast(response.data.message || `Verification code sent to ${cleanEmail}.`, 'info');
     } catch (err: any) {
       setErrorMessage(err?.message || 'Failed to dispatch verification code. Please check your network connection.');
     } finally {
@@ -258,19 +264,22 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
     setSuccessMessage(null);
 
     try {
-      const res = await fetch('/api/auth/customer/verify-reset-otp', {
+      const response = await safeFetchJson('/api/auth/customer/verify-reset-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: cleanEmail, otp: otpCode }),
       });
-      const data = await res.json();
 
-      if (!res.ok || !data.success) {
-        setErrorMessage(data.error || 'Invalid verification code.');
+      if (!response.ok || !response.data?.success) {
+        setErrorMessage(
+          response.data?.error ||
+            response.error ||
+            'Invalid verification code. Please check and try again.'
+        );
         return;
       }
 
-      setResetToken(data.resetToken || '');
+      setResetToken(response.data.resetToken || '');
       setForgotStep('SET_NEW_PASSWORD');
       setSuccessMessage('Code verified successfully! Please enter your new password.');
       showToast('Code verified! Enter your new password.', 'success');
@@ -302,7 +311,7 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
     setErrorMessage(null);
 
     try {
-      const res = await fetch('/api/auth/customer/reset-password', {
+      const response = await safeFetchJson('/api/auth/customer/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -312,11 +321,15 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
           newPassword,
         }),
       });
-      const data = await res.json();
 
-      if (!res.ok || !data.success) {
-        setErrorMessage(data.error || 'Failed to update password.');
+      if (!response.ok || !response.data?.success) {
+        setErrorMessage(response.data?.error || response.error || 'Failed to update password. Please try again.');
         return;
+      }
+
+      // Sync password reset email notification with Firebase if available
+      if (sendPasswordReset) {
+        sendPasswordReset(cleanEmail).catch(() => {});
       }
 
       setEmail(cleanEmail);
