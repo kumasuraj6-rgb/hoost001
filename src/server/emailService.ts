@@ -9,6 +9,44 @@ interface EmailOptions {
 
 let cachedTransporter: Transporter | null = null;
 
+/**
+ * Format and sanitize the 'from' email address to strictly adhere to:
+ * - 'email@example.com' or 'Name <email@example.com>'
+ * Handles unverified domain fallbacks, truncated inputs (e.g. 'onboarding@resend.'),
+ * and plain display names gracefully.
+ */
+export function formatSenderAddress(rawFrom?: string, isSmtp = false): string {
+  let val = (rawFrom || '').trim().replace(/^['"]|['"]$/g, '');
+
+  // Auto-correct common truncated resend domain inputs
+  if (val.includes('onboarding@resend') && !val.includes('onboarding@resend.dev')) {
+    val = val.replace(/onboarding@resend\.?/g, 'onboarding@resend.dev');
+  }
+
+  // 1. Check if format is already "DisplayName <email@domain.com>"
+  const angleMatch = val.match(/^(.*?)\s*<([^\s@<>]+@[^\s@<>]+\.[a-zA-Z]{2,})>$/);
+  if (angleMatch) {
+    const name = angleMatch[1].trim() || 'RIDEX Security';
+    const email = angleMatch[2].trim();
+    return `${name} <${email}>`;
+  }
+
+  // 2. Check if format is a bare valid email "user@domain.com"
+  const emailMatch = val.match(/^[^\s@<>]+@[^\s@<>]+\.[a-zA-Z]{2,}$/);
+  if (emailMatch) {
+    return `RIDEX Security <${val}>`;
+  }
+
+  // 3. If provided string is just a name or malformed email
+  if (val && !val.includes('@')) {
+    const defaultEmail = isSmtp ? 'no-reply@ridexmoto.com' : 'onboarding@resend.dev';
+    return `${val} <${defaultEmail}>`;
+  }
+
+  // 4. Default fallback
+  return isSmtp ? '"RIDEX Moto Security" <no-reply@ridexmoto.com>' : 'RIDEX Security <onboarding@resend.dev>';
+}
+
 function getTransporter(): Transporter | null {
   if (cachedTransporter) return cachedTransporter;
 
@@ -84,27 +122,52 @@ export async function sendOtpEmail(toEmail: string, otpCode: string, purpose: 'C
 
   // 1. Check Resend API
   if (process.env.RESEND_API_KEY) {
+    let fromAddress = formatSenderAddress(process.env.EMAIL_FROM, false);
+
     try {
-      const response = await fetch('https://api.resend.com/emails', {
+      let response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: process.env.EMAIL_FROM || 'RIDEX Security <security@ridexmoto.com>',
+          from: fromAddress,
           to: [toEmail],
           subject,
           html,
         }),
       });
 
+      // If validation error occurred on the 'from' field, retry with standard onboarding sender
+      if (!response.ok && (response.status === 422 || response.status === 403)) {
+        const errText = await response.text();
+        console.warn(`[EmailService] Resend API attempt with "${fromAddress}" returned ${response.status}: ${errText}. Retrying with verified sandbox sender...`);
+
+        if (fromAddress !== 'RIDEX Security <onboarding@resend.dev>') {
+          fromAddress = 'RIDEX Security <onboarding@resend.dev>';
+          response = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: fromAddress,
+              to: [toEmail],
+              subject,
+              html,
+            }),
+          });
+        }
+      }
+
       if (response.ok) {
-        console.log(`[EmailService] OTP sent to ${toEmail} via Resend API`);
+        console.log(`[EmailService] OTP successfully sent to ${toEmail} via Resend API (from: ${fromAddress})`);
         return { sent: true, method: 'resend' };
       } else {
-        const errText = await response.text();
-        console.warn(`[EmailService] Resend API failed: ${errText}`);
+        const finalErr = await response.text();
+        console.warn(`[EmailService] Resend API failed: ${finalErr}`);
       }
     } catch (err) {
       console.error('[EmailService] Error calling Resend API:', err);
@@ -114,9 +177,10 @@ export async function sendOtpEmail(toEmail: string, otpCode: string, purpose: 'C
   // 2. Check SMTP Transporter
   const transporter = getTransporter();
   if (transporter) {
+    const smtpFrom = formatSenderAddress(process.env.EMAIL_FROM, true);
     try {
       await transporter.sendMail({
-        from: process.env.EMAIL_FROM || '"RIDEX Moto Security" <no-reply@ridexmoto.com>',
+        from: smtpFrom,
         to: toEmail,
         subject,
         html,

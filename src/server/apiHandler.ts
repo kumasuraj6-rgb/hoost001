@@ -17,6 +17,16 @@ import {
 } from '../data/initialData';
 import { validateProductSafety, AllowedCategory, Customer, ReturnRequest, UserAccount } from '../types';
 import { sendOtpEmail } from './emailService';
+import {
+  authenticateRequest,
+  isAuthorizedAdmin,
+  generateUserToken,
+  validateOrderTransaction,
+  validateProductTransaction,
+  validateCouponTransaction,
+  validateReturnTransaction,
+  AUTHORIZED_ADMIN_EMAILS,
+} from './rbacMiddleware';
 
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
@@ -186,16 +196,7 @@ adminPasswordStore.set('ms0736687@gmail.com', 'Rajkumar@1122');
 
 // RBAC: Verify if incoming request is from authorized administrator
 export function isAuthorizedAdminRequest(req: http.IncomingMessage): boolean {
-  const role = (req.headers['x-user-role'] as string) || '';
-  const portal = (req.headers['x-portal-access'] as string) || '';
-  const authHeader = (req.headers['authorization'] as string) || '';
-  const email = ((req.headers['x-user-email'] as string) || '').toLowerCase().trim();
-
-  if (role === 'ADMIN' || role === 'SUPER_ADMIN') return true;
-  if (portal === 'admin') return true;
-  if (authHeader.startsWith('Bearer adm_')) return true;
-  if (email === 'skgsurajshahu317@gmail.com' || email === 'ms0736687@gmail.com') return true;
-  return false;
+  return isAuthorizedAdmin(req);
 }
 
 function writeJsonFile<T>(filePath: string, data: T) {
@@ -542,7 +543,12 @@ export async function handleApiRequest(
         adminAccount.lastLogin = new Date().toISOString();
         writeJsonFile(USERS_FILE, userAccounts);
 
-        const token = `adm_${Buffer.from(`${adminAccount.id}:${Date.now()}`).toString('base64')}`;
+        const token = generateUserToken({
+          id: adminAccount.id,
+          email: adminAccount.email,
+          role: adminAccount.role || 'ADMIN',
+        });
+        res.setHeader('Set-Cookie', `ridex_admin_token=${token}; Path=/; SameSite=Lax; HttpOnly`);
         sendJson(res, 200, {
           success: true,
           portal: 'admin',
@@ -603,7 +609,12 @@ export async function handleApiRequest(
           }
         }
 
-        const token = `cust_${Buffer.from(`${customer.id}:${Date.now()}`).toString('base64')}`;
+        const token = generateUserToken({
+          id: customer.id,
+          email: customer.email,
+          role: 'CUSTOMER',
+        });
+        res.setHeader('Set-Cookie', `ridex_customer_token=${token}; Path=/; SameSite=Lax; HttpOnly`);
         sendJson(res, 200, {
           success: true,
           portal: 'customer',
@@ -1027,11 +1038,27 @@ export async function handleApiRequest(
   // ROLE-BASED ACCESS CONTROL (RBAC) MIDDLEWARE GUARD
   // Segregates administrative endpoints from customer requests
   // ----------------------------------------------------
-  if (pathname.startsWith('/api/admin') || pathname === '/api/store/reset') {
+  const isAdminOnlyOperation =
+    pathname.startsWith('/api/admin') ||
+    pathname === '/api/store/reset' ||
+    (pathname === '/api/store' && (method === 'PUT' || method === 'POST')) ||
+    (pathname === '/api/products' && (method === 'POST' || method === 'PUT' || method === 'DELETE')) ||
+    pathname.startsWith('/api/products/duplicate') ||
+    (pathname === '/api/coupons' && (method === 'POST' || method === 'DELETE')) ||
+    pathname.startsWith('/api/users') ||
+    pathname === '/api/orders/import' ||
+    pathname === '/api/orders/status' ||
+    pathname === '/api/returns/status' ||
+    pathname === '/api/analytics' ||
+    pathname.startsWith('/api/ai/') ||
+    (pathname === '/api/media' && (method === 'POST' || method === 'DELETE'));
+
+  if (isAdminOnlyOperation) {
     if (!isAuthorizedAdminRequest(req)) {
       sendJson(res, 403, {
         success: false,
-        error: 'Access Denied: Role-Based Access Control requires Administrator credentials. Customer accounts cannot access the Operations API.',
+        error: 'Access Denied: Role-Based Access Control (RBAC) strictly requires verified Administrator credentials. Customer or unauthenticated sessions cannot mutate store state or access operations APIs.',
+        code: 'RBAC_FORBIDDEN_PORTAL',
       });
       return true;
     }
@@ -1123,6 +1150,13 @@ export async function handleApiRequest(
     try {
       let body = await parseJsonBody(req);
       body = sanitizeProductImages(body);
+
+      // Strict Transaction & Category Validation
+      const productValidation = validateProductTransaction(body);
+      if (!productValidation.valid) {
+        sendJson(res, 400, { success: false, error: productValidation.error });
+        return true;
+      }
 
       // Strict Safety Validation (Riding gear / luggage only)
       const safety = validateProductSafety(body.name || '', body.category || 'Riding Jackets');
@@ -1227,7 +1261,31 @@ export async function handleApiRequest(
   // 3. ORDERS & SHIPMENTS
   // ----------------------------------------------------
   if (pathname === '/api/orders' && method === 'GET') {
-    sendJson(res, 200, { success: true, count: orders.length, orders });
+    const authUser = authenticateRequest(req);
+    const filterEmail = (parsedUrl.searchParams.get('customerEmail') || '').toLowerCase().trim();
+
+    if (authUser.role === 'ADMIN' || authUser.role === 'SUPER_ADMIN') {
+      // Administrator can view all orders or filter
+      const filtered = filterEmail
+        ? orders.filter((o: any) => o.customerEmail?.toLowerCase() === filterEmail)
+        : orders;
+      sendJson(res, 200, { success: true, count: filtered.length, orders: filtered });
+      return true;
+    }
+
+    // Customer / Storefront: Restrict to authenticated customer's own orders only
+    const targetEmail = authUser.email || filterEmail;
+    if (!targetEmail) {
+      sendJson(res, 403, {
+        success: false,
+        error: 'RBAC Customer Isolation: You must provide verified customer authentication to view your order history.',
+        code: 'RBAC_CUSTOMER_AUTH_REQUIRED',
+      });
+      return true;
+    }
+
+    const customerOrders = orders.filter((o: any) => o.customerEmail?.toLowerCase() === targetEmail.toLowerCase());
+    sendJson(res, 200, { success: true, count: customerOrders.length, orders: customerOrders });
     return true;
   }
 
@@ -1242,16 +1300,28 @@ export async function handleApiRequest(
     return true;
   }
 
-  // Create Order (with stock deduction)
+  // Create Order (with strict transaction validation and stock deduction)
   if (pathname === '/api/orders' && method === 'POST') {
     try {
       const body = await parseJsonBody(req);
+      
+      // Strict Transaction Validation (validates line items, catalog prices, GST, delivery, and customer data)
+      const validation = validateOrderTransaction(body, products);
+      if (!validation.valid) {
+        sendJson(res, 400, {
+          success: false,
+          error: validation.error || 'Strict Data Transaction Validation failed.',
+        });
+        return true;
+      }
+
+      const verifiedData = validation.sanitizedData || body;
       const id = `ord-${Date.now()}`;
       const orderNumber = `RDX-2026-${Math.floor(1000 + Math.random() * 9000)}`;
 
-      // Validate and deduct stock
-      if (Array.isArray(body.items)) {
-        for (const item of body.items) {
+      // Deduct verified stock atomically
+      if (Array.isArray(verifiedData.items)) {
+        for (const item of verifiedData.items) {
           const prod = products.find((p: any) => p.id === item.productId);
           if (prod) {
             prod.stock = Math.max(0, prod.stock - (item.quantity || 1));
@@ -1261,12 +1331,12 @@ export async function handleApiRequest(
       }
 
       const newOrder = {
-        ...body,
+        ...verifiedData,
         id,
         orderNumber,
-        orderStatus: body.orderStatus || 'CONFIRMED',
-        paymentStatus: body.paymentMethod === 'COD' ? 'PENDING' : 'PAID',
-        shipment: body.shipment || {
+        orderStatus: verifiedData.orderStatus || 'CONFIRMED',
+        paymentStatus: verifiedData.paymentMethod === 'COD' ? 'PENDING' : 'PAID',
+        shipment: verifiedData.shipment || {
           shipmentId: `SHIP-${Math.floor(100000 + Math.random() * 900000)}`,
           courierPartner: 'Shiprocket Express',
           trackingNumber: `SR${Math.floor(100000000 + Math.random() * 900000000)}IN`,
@@ -1288,7 +1358,7 @@ export async function handleApiRequest(
       writeJsonFile(ORDERS_FILE, orders);
 
       // Update customer record spending
-      const cust = customers.find((c: any) => c.email === body.customerEmail);
+      const cust = customers.find((c: any) => c.email && c.email.toLowerCase() === (newOrder.customerEmail || '').toLowerCase());
       if (cust) {
         cust.totalOrders = (cust.totalOrders || 0) + 1;
         cust.totalSpent = (cust.totalSpent || 0) + (newOrder.grandTotal || 0);
@@ -1296,7 +1366,7 @@ export async function handleApiRequest(
         writeJsonFile(CUSTOMERS_FILE, customers);
       }
 
-      sendJson(res, 201, { success: true, order: newOrder, message: 'Order placed successfully' });
+      sendJson(res, 201, { success: true, order: newOrder, message: 'Order placed and verified successfully' });
     } catch (err: any) {
       sendJson(res, 400, { success: false, error: err.message || 'Failed to place order' });
     }
@@ -1767,6 +1837,13 @@ export async function handleApiRequest(
   if (pathname === '/api/coupons' && method === 'POST') {
     try {
       const body = await parseJsonBody(req);
+      
+      const validation = validateCouponTransaction(body);
+      if (!validation.valid) {
+        sendJson(res, 400, { success: false, error: validation.error });
+        return true;
+      }
+
       const existingIdx = coupons.findIndex((c: any) => c.id === body.id);
 
       if (existingIdx >= 0) {
@@ -1919,7 +1996,14 @@ export async function handleApiRequest(
   if (pathname === '/api/returns' && method === 'POST') {
     try {
       const body = await parseJsonBody(req);
-      const order = orders.find((o: any) => o.id === body.orderId);
+      
+      const validation = validateReturnTransaction(body, orders);
+      if (!validation.valid) {
+        sendJson(res, 400, { success: false, error: validation.error });
+        return true;
+      }
+
+      const order = orders.find((o: any) => o.id === body.orderId || o.orderNumber === body.orderId);
       if (!order) {
         sendJson(res, 404, { success: false, error: 'Order not found' });
         return true;

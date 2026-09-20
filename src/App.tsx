@@ -1,5 +1,3 @@
-'use client';
-
 import React, { useState } from 'react';
 import { FirebaseProvider } from './context/FirebaseContext';
 import { StoreProvider, useStore } from './context/StoreContext';
@@ -102,14 +100,20 @@ const AppContent: React.FC = () => {
 
   const isAuthorizedAdmin =
     Boolean(adminSession) &&
-    adminSession?.email?.trim().toLowerCase() === 'skgsurajshahu317@gmail.com' &&
+    (adminSession?.email?.trim().toLowerCase() === 'skgsurajshahu317@gmail.com' ||
+     adminSession?.email?.trim().toLowerCase() === 'ms0736687@gmail.com') &&
     (adminSession?.role === 'ADMIN' || adminSession?.role === 'SUPER_ADMIN');
 
   if (isAtAdminDashboard) {
     if (!isAuthorizedAdmin) {
+      const isCustomerLoggedIn = currentUser?.role === 'CUSTOMER';
+      const rbacMsg = isCustomerLoggedIn
+        ? "Access Denied: Role-Based Access Control (RBAC) enforces strict portal segregation. Your current session is a 'Customer' account and cannot access the Administrator Operations Portal. Please sign in with verified Administrator credentials."
+        : "Access Denied: The Admin Panel is strictly restricted to verified administrators (skgsurajshahu317@gmail.com / ms0736687@gmail.com).";
+
       return (
         <>
-          <AdminLogin accessDeniedMessage="Access Denied: The Admin Panel is strictly restricted to registered administrator skgsurajshahu317@gmail.com. No other account is permitted access." />
+          <AdminLogin accessDeniedMessage={rbacMsg} />
           {toastMessage && (
             <div className="fixed bottom-6 right-6 z-[9999] max-w-sm w-full">
               <div

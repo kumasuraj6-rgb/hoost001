@@ -284,7 +284,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (
           parsed &&
           (parsed.role === 'ADMIN' || parsed.role === 'SUPER_ADMIN') &&
-          parsed.email?.toLowerCase().trim() === 'skgsurajshahu317@gmail.com'
+          (parsed.email?.toLowerCase().trim() === 'skgsurajshahu317@gmail.com' ||
+           parsed.email?.toLowerCase().trim() === 'ms0736687@gmail.com')
         ) {
           return parsed;
         }
@@ -328,7 +329,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const isAuthAdmin =
       adminSession &&
-      adminSession.email?.toLowerCase().trim() === 'skgsurajshahu317@gmail.com';
+      (adminSession.email?.toLowerCase().trim() === 'skgsurajshahu317@gmail.com' ||
+       adminSession.email?.toLowerCase().trim() === 'ms0736687@gmail.com') &&
+      (adminSession.role === 'ADMIN' || adminSession.role === 'SUPER_ADMIN');
 
     const unsubOrders = subscribeToOrdersRealtime(
       (updatedOrders) => {
@@ -716,13 +719,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setActiveView('ADMIN');
         setAdminAccessDeniedNotice(null);
       } else {
-        setAdminAccessDeniedNotice('Access Denied: Only registered administrator (skgsurajshahu317@gmail.com) can access the Admin Panel.');
+        setAdminAccessDeniedNotice('Access Denied: Role-Based Access Control requires Administrator credentials. Customer accounts cannot access the Operations Portal.');
         setCurrentPath('/admin/login');
         setActiveView('ADMIN_LOGIN');
         if (typeof window !== 'undefined') {
           window.history.pushState(null, '', '/admin/login?error=access_denied');
         }
-        showToast('Access Denied: Only registered admin (skgsurajshahu317@gmail.com) can access the Admin Panel.', 'error');
+        showToast('Access Denied: Role-Based Access Control requires Administrator credentials. Customer accounts cannot access the Operations Portal.', 'error');
       }
     } else if (path === '/admin/login') {
       // Direct access to Admin Login
