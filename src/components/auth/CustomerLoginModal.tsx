@@ -60,11 +60,13 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
 
   // Forgot Password via OTP States
   const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotOtpSent, setForgotOtpSent] = useState(false);
-  const [forgotOtpDigits, setForgotOtpDigits] = useState(['', '', '', '']);
+  const [forgotStep, setForgotStep] = useState<'REQUEST_EMAIL' | 'VERIFY_OTP' | 'SET_NEW_PASSWORD'>('REQUEST_EMAIL');
+  const [resetToken, setResetToken] = useState('');
+  const [forgotOtpDigits, setForgotOtpDigits] = useState(['', '', '', '', '', '']);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [countdown, setCountdown] = useState(0);
 
   // Status & Feedback
@@ -182,13 +184,13 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
   };
 
   // ----------------------------------------------------
-  // 3. Forgot Password: Send OTP to Registered Email
+  // 3. Forgot Password: Step 1 - Send 6-Digit OTP
   // ----------------------------------------------------
   const handleSendForgotOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const cleanEmail = (forgotEmail || email).trim().toLowerCase();
     if (!cleanEmail || !cleanEmail.includes('@')) {
-      setErrorMessage('Please enter a valid registered email address to receive OTP.');
+      setErrorMessage('Please enter a valid registered email address.');
       return;
     }
 
@@ -197,10 +199,7 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
     setSuccessMessage(null);
 
     try {
-      // Dispatch standard Firebase password reset link in parallel
-      sendPasswordReset(cleanEmail).catch(() => {});
-
-      const res = await fetch('/api/auth/forgot-password/send-otp', {
+      const res = await fetch('/api/auth/customer/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: cleanEmail }),
@@ -208,50 +207,85 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        setErrorMessage(data.error || 'Failed to dispatch verification OTP.');
+        setErrorMessage(data.error || 'Failed to dispatch verification code.');
         return;
       }
 
-      setForgotOtpSent(true);
+      setForgotStep('VERIFY_OTP');
       setCountdown(30);
-      setForgotOtpDigits(['', '', '', '']);
-      setSuccessMessage(data.message || `A 4-digit verification code has been dispatched to ${cleanEmail}. (Code expires in 10 minutes)`);
-      showToast(data.message || `Verification OTP dispatched to ${cleanEmail}.`, 'info');
+      setForgotOtpDigits(['', '', '', '', '', '']);
+      setSuccessMessage(data.message || `A 6-digit verification code has been dispatched to ${cleanEmail}. (Code expires in 10 minutes)`);
+      showToast(data.message || `Verification code sent to ${cleanEmail}.`, 'info');
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Failed to dispatch verification OTP. Please verify your connection.');
+      setErrorMessage(err?.message || 'Failed to dispatch verification code. Please check your network connection.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handle OTP paste in forgot password
+  // Handle OTP paste in forgot password (6 digits)
   const handleForgotOtpPaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
     e.preventDefault();
     const pasted = e.clipboardData.getData('text').trim().replace(/\D/g, '');
     if (pasted) {
-      const digits = pasted.slice(0, 4).split('');
+      const digits = pasted.slice(0, 6).split('');
       const newDigits = [...forgotOtpDigits];
       digits.forEach((d, i) => {
-        if (i < 4) newDigits[i] = d;
+        if (i < 6) newDigits[i] = d;
       });
       setForgotOtpDigits(newDigits);
-      const focusIndex = Math.min(digits.length - 1, 3);
+      const focusIndex = Math.min(digits.length - 1, 5);
       document.getElementById(`forgot-otp-${focusIndex}`)?.focus();
     }
   };
 
   // ----------------------------------------------------
-  // 4. Forgot Password: Verify OTP & Set New Password
+  // 4. Forgot Password: Step 2 - Verify 6-Digit OTP
   // ----------------------------------------------------
-  const handleVerifyOtpAndReset = async (e: React.FormEvent) => {
+  const handleVerifyResetOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanEmail = (forgotEmail || email).trim().toLowerCase();
     const otpCode = forgotOtpDigits.join('').trim();
 
-    if (otpCode.length < 4) {
-      setErrorMessage('Please enter the complete 4-digit verification code.');
+    if (otpCode.length < 6) {
+      setErrorMessage('Please enter the complete 6-digit verification code.');
       return;
     }
+
+    setIsLoading(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      const res = await fetch('/api/auth/customer/verify-reset-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, otp: otpCode }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setErrorMessage(data.error || 'Invalid verification code.');
+        return;
+      }
+
+      setResetToken(data.resetToken || '');
+      setForgotStep('SET_NEW_PASSWORD');
+      setSuccessMessage('Code verified successfully! Please enter your new password.');
+      showToast('Code verified! Enter your new password.', 'success');
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Verification failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ----------------------------------------------------
+  // 5. Forgot Password: Step 3 - Set New Password
+  // ----------------------------------------------------
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanEmail = (forgotEmail || email).trim().toLowerCase();
 
     if (!newPassword || newPassword.length < 6) {
       setErrorMessage('New password must be at least 6 characters long.');
@@ -267,23 +301,35 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
     setErrorMessage(null);
 
     try {
-      const result = await customerResetPasswordWithOtp(cleanEmail, otpCode, newPassword);
-      if (result.success) {
-        // Auto update current form with the newly verified credentials
-        setEmail(cleanEmail);
-        setPassword(newPassword);
-        setSuccessMessage('Password reset successfully! Please sign in with your new password.');
-        showToast('Password reset successfully! Please sign in.', 'success');
-        setMode('SIGN_IN');
-        setForgotOtpSent(false);
-        setForgotOtpDigits(['', '', '', '']);
-        setNewPassword('');
-        setConfirmPassword('');
-      } else {
-        setErrorMessage(result.error || 'Failed to verify OTP or reset password.');
+      const res = await fetch('/api/auth/customer/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: cleanEmail,
+          resetToken,
+          otp: forgotOtpDigits.join('').trim(),
+          newPassword,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setErrorMessage(data.error || 'Failed to update password.');
+        return;
       }
+
+      setEmail(cleanEmail);
+      setPassword(newPassword);
+      setSuccessMessage('Password reset successfully! Please sign in with your new password.');
+      showToast('Password reset successfully! Please sign in.', 'success');
+      setMode('SIGN_IN');
+      setForgotStep('REQUEST_EMAIL');
+      setForgotOtpDigits(['', '', '', '', '', '']);
+      setResetToken('');
+      setNewPassword('');
+      setConfirmPassword('');
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Error occurred while resetting password.');
+      setErrorMessage(err?.message || 'Password reset failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -410,7 +456,9 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
                       setErrorMessage(null);
                       setSuccessMessage(null);
                       setForgotEmail(email);
-                      setForgotOtpSent(false);
+                      setForgotStep('REQUEST_EMAIL');
+                      setForgotOtpDigits(['', '', '', '', '', '']);
+                      setResetToken('');
                       setMode('FORGOT_PASSWORD');
                     }}
                     className="text-[11px] text-amber-400 hover:text-amber-300 font-semibold cursor-pointer"
@@ -525,25 +573,32 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
         {/* ---------------------------------------------------- */}
         {mode === 'FORGOT_PASSWORD' && (
           <div className="space-y-4 text-xs">
-            {!forgotOtpSent ? (
-              /* Step 1: Request Verification OTP to Registered Email */
+            {forgotStep === 'REQUEST_EMAIL' && (
+              /* Step 1: Request Verification OTP to Registered Customer Email */
               <form onSubmit={handleSendForgotOtp} className="space-y-3.5">
+                <div className="space-y-1 text-center pb-1">
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider">FORGOT PASSWORD</h3>
+                  <p className="text-[11px] text-neutral-400">
+                    Enter your registered email address to receive a 6-digit verification code.
+                  </p>
+                </div>
+
                 <div className="space-y-1">
                   <label className="text-neutral-300 font-bold uppercase tracking-wider text-[10px] flex items-center gap-1.5">
                     <Mail className="w-3.5 h-3.5 text-neutral-400" />
-                    <span>Registered Email Address *</span>
+                    <span>Enter registered email *</span>
                   </label>
                   <input
                     type="email"
                     required
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
-                    placeholder="Enter your email address"
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-neutral-100 focus:border-amber-500 focus:outline-none transition-colors"
+                    placeholder="customer@example.com"
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-neutral-100 focus:border-amber-500 focus:outline-none transition-colors font-mono"
                     id="forgot-email-input"
                   />
-                  <p className="text-[10px] text-neutral-400">
-                    We will send a 4-digit verification OTP code to this email to securely verify your identity.
+                  <p className="text-[10px] text-neutral-500">
+                    We will send a 6-digit verification code to this email to securely verify your identity.
                   </p>
                 </div>
 
@@ -556,90 +611,126 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
                   {isLoading ? (
                     <div className="flex items-center gap-2">
                       <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                      <span>Sending OTP...</span>
+                      <span>Sending Code...</span>
                     </div>
                   ) : (
                     <>
                       <Smartphone className="w-4 h-4" />
-                      <span>Send Verification OTP</span>
+                      <span>SEND VERIFICATION CODE</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
                 </button>
               </form>
-            ) : (
-              /* Step 2: Enter OTP Code and Set New Password */
-              <form onSubmit={handleVerifyOtpAndReset} className="space-y-3.5">
-                <div className="space-y-2 text-center">
-                  <div className="flex items-center justify-between text-[11px] text-neutral-400">
-                    <span>
-                      Code sent to <strong className="text-neutral-200 font-mono">{forgotEmail}</strong>
-                    </span>
+            )}
+
+            {forgotStep === 'VERIFY_OTP' && (
+              /* Step 2: Enter 6-digit OTP Code */
+              <form onSubmit={handleVerifyResetOtp} className="space-y-3.5">
+                <div className="space-y-1 text-center pb-1">
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider">RESET PASSWORD VIA OTP</h3>
+                  <div className="flex items-center justify-center gap-1.5 text-[11px] text-neutral-400">
+                    <span>Code sent to:</span>
+                    <strong className="text-amber-400 font-mono">{forgotEmail}</strong>
                     <button
                       type="button"
-                      onClick={() => setForgotOtpSent(false)}
-                      className="text-amber-400 hover:text-amber-300 underline cursor-pointer"
+                      onClick={() => {
+                        setForgotStep('REQUEST_EMAIL');
+                        setErrorMessage(null);
+                      }}
+                      className="ml-1 text-neutral-400 hover:text-white underline cursor-pointer text-[10px]"
                     >
-                      Change email
+                      (Change)
                     </button>
                   </div>
+                </div>
 
-                  {/* 4-digit OTP Code inputs with Paste Support */}
-                  <div className="flex justify-center gap-2.5 pt-1" onPaste={handleForgotOtpPaste}>
-                    {forgotOtpDigits.map((digit, index) => (
-                      <input
-                        key={index}
-                        id={`forgot-otp-${index}`}
-                        type="text"
-                        inputMode="numeric"
-                        autoComplete="one-time-code"
-                        maxLength={1}
-                        placeholder="•"
-                        autoFocus={index === 0}
-                        value={digit}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, '');
-                          const newDigits = [...forgotOtpDigits];
-                          newDigits[index] = val;
-                          setForgotOtpDigits(newDigits);
-                          if (val && index < 3) {
-                            document.getElementById(`forgot-otp-${index + 1}`)?.focus();
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Backspace' && !forgotOtpDigits[index] && index > 0) {
-                            document.getElementById(`forgot-otp-${index - 1}`)?.focus();
-                          }
-                        }}
-                        className="w-12 h-12 text-center text-lg font-mono font-black bg-neutral-950 border border-neutral-700 rounded-xl text-amber-400 focus:border-amber-500 focus:outline-none"
-                      />
-                    ))}
-                  </div>
+                {/* 6-digit OTP Code inputs with Paste Support */}
+                <div className="flex justify-center gap-2 pt-1" onPaste={handleForgotOtpPaste}>
+                  {forgotOtpDigits.map((digit, index) => (
+                    <input
+                      key={index}
+                      id={`forgot-otp-${index}`}
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={1}
+                      placeholder="•"
+                      autoFocus={index === 0}
+                      value={digit}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '');
+                        const newDigits = [...forgotOtpDigits];
+                        newDigits[index] = val;
+                        setForgotOtpDigits(newDigits);
+                        if (val && index < 5) {
+                          document.getElementById(`forgot-otp-${index + 1}`)?.focus();
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Backspace' && !forgotOtpDigits[index] && index > 0) {
+                          document.getElementById(`forgot-otp-${index - 1}`)?.focus();
+                        }
+                      }}
+                      className="w-10 h-12 text-center text-lg font-mono font-black bg-neutral-950 border border-neutral-700 rounded-xl text-amber-400 focus:border-amber-500 focus:outline-none"
+                    />
+                  ))}
+                </div>
 
-                  {/* Resend OTP countdown */}
-                  <div className="text-[11px] text-neutral-400 pt-0.5">
-                    {countdown > 0 ? (
-                      <span>
-                        Resend code in <strong className="text-amber-400 font-mono">{countdown}s</strong>
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleSendForgotOtp()}
-                        className="text-amber-400 hover:text-amber-300 underline font-semibold cursor-pointer"
-                        id="resend-forgot-otp-btn"
-                      >
-                        Resend Verification OTP
-                      </button>
-                    )}
-                  </div>
+                <button
+                  type="submit"
+                  disabled={isLoading || forgotOtpDigits.join('').length < 6}
+                  className="w-full py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-[0.99] text-black font-black uppercase text-xs tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 disabled:opacity-50 cursor-pointer"
+                  id="verify-forgot-otp-btn"
+                >
+                  {isLoading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                      <span>Verifying OTP...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>VERIFY OTP</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Resend OTP countdown */}
+                <div className="text-center text-[11px] text-neutral-400 pt-0.5">
+                  {countdown > 0 ? (
+                    <span>
+                      Resend code in <strong className="text-amber-400 font-mono">{countdown}s</strong>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleSendForgotOtp()}
+                      className="text-amber-400 hover:text-amber-300 underline font-semibold cursor-pointer"
+                      id="resend-forgot-otp-btn"
+                    >
+                      Resend Verification Code
+                    </button>
+                  )}
+                </div>
+              </form>
+            )}
+
+            {forgotStep === 'SET_NEW_PASSWORD' && (
+              /* Step 3: Enter & Confirm New Password */
+              <form onSubmit={handleResetPassword} className="space-y-3.5">
+                <div className="space-y-1 text-center pb-1">
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider">NEW PASSWORD</h3>
+                  <p className="text-[11px] text-neutral-400">
+                    Create a new strong password for <span className="text-neutral-200 font-mono">{forgotEmail}</span>
+                  </p>
                 </div>
 
                 {/* New Password Input */}
                 <div className="space-y-1">
                   <label className="text-neutral-300 font-bold uppercase tracking-wider text-[10px] flex items-center gap-1.5">
                     <Lock className="w-3.5 h-3.5 text-neutral-400" />
-                    <span>New Password (Min 6 Characters) *</span>
+                    <span>Enter new password (Min 6 Characters) *</span>
                   </label>
                   <div className="relative">
                     <input
@@ -647,9 +738,9 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
                       required
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Enter new strong password"
+                      placeholder="Enter new password"
                       className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 pr-10 text-neutral-100 focus:border-amber-500 focus:outline-none font-mono"
-                      id="reset-new-password"
+                      id="forgot-new-password"
                     />
                     <button
                       type="button"
@@ -665,34 +756,43 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
                 <div className="space-y-1">
                   <label className="text-neutral-300 font-bold uppercase tracking-wider text-[10px] flex items-center gap-1.5">
                     <Lock className="w-3.5 h-3.5 text-neutral-400" />
-                    <span>Confirm New Password *</span>
+                    <span>CONFIRM PASSWORD *</span>
                   </label>
-                  <input
-                    type="password"
-                    required
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Re-enter new password"
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-neutral-100 focus:border-amber-500 focus:outline-none font-mono"
-                    id="reset-confirm-password"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      required
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirm new password"
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 pr-10 text-neutral-100 focus:border-amber-500 focus:outline-none font-mono"
+                      id="forgot-confirm-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-200 cursor-pointer"
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <button
                   type="submit"
                   disabled={isLoading}
                   className="w-full py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-[0.99] text-black font-black uppercase text-xs tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 disabled:opacity-50 cursor-pointer"
-                  id="verify-reset-password-btn"
+                  id="reset-password-btn"
                 >
                   {isLoading ? (
                     <div className="flex items-center gap-2">
                       <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                      <span>Verifying OTP &amp; Resetting Password...</span>
+                      <span>Updating Password...</span>
                     </div>
                   ) : (
                     <>
                       <CheckCircle2 className="w-4 h-4" />
-                      <span>Verify OTP &amp; Reset Password</span>
+                      <span>RESET PASSWORD</span>
                     </>
                   )}
                 </button>
@@ -707,6 +807,7 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
                   setErrorMessage(null);
                   setSuccessMessage(null);
                   setMode('SIGN_IN');
+                  setForgotStep('REQUEST_EMAIL');
                 }}
                 className="text-xs text-neutral-400 hover:text-amber-400 transition-colors inline-flex items-center gap-1.5 cursor-pointer"
                 id="back-to-login-from-forgot"

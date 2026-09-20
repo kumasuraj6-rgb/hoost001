@@ -3,24 +3,21 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ----------------------------------------------------
-    // GLOBAL HELPERS & HARDENED PRIMITIVES
+    // GLOBAL SECURITY PRIMITIVES & IDENTITY HELPERS
     // ----------------------------------------------------
 
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function isVerifiedUser() {
-      return isSignedIn() && request.auth.token.email_verified == true;
-    }
-
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Hardened Admin check: Bootstrapped runtime admin emails + dedicated admin collection
+    // Hardened Admin check: Custom Claims, verified admin emails, or admin directory
     function isAdmin() {
       return isSignedIn() && (
+        (request.auth.token.admin == true) ||
         (request.auth.token.email == 'ms0736687@gmail.com') ||
         (request.auth.token.email == 'skgsurajshahu317@gmail.com') ||
         exists(/databases/$(database)/documents/admins/$(request.auth.uid))
@@ -40,7 +37,7 @@ service cloud.firestore {
     }
 
     // ----------------------------------------------------
-    // ENTITY VALIDATION HELPERS
+    // VALIDATION HELPERS
     // ----------------------------------------------------
 
     function isValidProduct(data) {
@@ -67,7 +64,7 @@ service cloud.firestore {
 
     function isValidCoupon(data) {
       return data.code is string && data.code.size() > 0 && data.code.size() <= 50 &&
-             data.discountType in ['PERCENTAGE', 'FLAT'] &&
+             data.discountType in ['PERCENTAGE', 'FLAT', 'FIXED'] &&
              data.discountValue is number && data.discountValue >= 0 &&
              data.isActive is bool;
     }
@@ -77,19 +74,19 @@ service cloud.firestore {
              data.orderId is string && data.orderId.size() <= 128 &&
              data.customerEmail is string && data.customerEmail.size() <= 150 &&
              data.reason is string && data.reason.size() <= 1000 &&
-             data.status in ['PENDING', 'APPROVED', 'REJECTED', 'PICKED_UP', 'REFUNDED'];
+             data.status in ['REQUESTED', 'UNDER_REVIEW', 'PENDING', 'APPROVED', 'REJECTED', 'PICKED_UP', 'REFUND_INITIATED', 'REFUND_COMPLETED', 'REFUNDED'];
     }
 
     // ----------------------------------------------------
-    // DEFAULT-DENY GLOBAL SAFETY NET
+    // 1. DEFAULT-DENY GLOBAL SAFETY NET
     // ----------------------------------------------------
     match /{document=**} {
       allow read, write: if false;
     }
 
     // ----------------------------------------------------
-    // PRODUCTS COLLECTION
-    // Public read-only for shoppers; Admin-only writes
+    // 2. PRODUCTS COLLECTION (Catalog & Inventory)
+    // Public read for customer browsing; Admin-only write/delete
     // ----------------------------------------------------
     match /products/{productId} {
       allow get: if isValidId(productId);
@@ -100,22 +97,21 @@ service cloud.firestore {
     }
 
     // ----------------------------------------------------
-    // ORDERS COLLECTION
-    // Customers can view and query their own orders; Admins can view and update all
+    // 3. ORDERS COLLECTION
+    // Customer can only view/query their own orders; Admin has full management
+    // Customers can create orders; Admin updates/deletes
     // ----------------------------------------------------
     match /orders/{orderId} {
       allow get: if isValidId(orderId) && (
         isAdmin() ||
         (isSignedIn() && (resource.data.customerId == request.auth.uid || resource.data.customerEmail == request.auth.token.email))
       );
-      // Secure list query: client must query where customerId == auth.uid or admin
       allow list: if isAdmin() || (
         isSignedIn() && (
           resource.data.customerId == request.auth.uid ||
           resource.data.customerEmail == request.auth.token.email
         )
       );
-      // Allow creation by signed in customer or checkout session with valid schema
       allow create: if isValidId(orderId) && isValidOrder(incoming()) && (
         isAdmin() ||
         (isSignedIn() && (incoming().customerId == request.auth.uid || incoming().customerEmail == request.auth.token.email)) ||
@@ -126,43 +122,61 @@ service cloud.firestore {
     }
 
     // ----------------------------------------------------
-    // USERS (CUSTOMER PROFILES)
-    // Users can only read/write their own profile; No self-assigned admin
+    // 4. USERS (Customer Profiles, Addresses, Cart, Wishlist)
+    // Private to the authenticated owner; Admin can view all
     // ----------------------------------------------------
     match /users/{userId} {
       allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
       allow list: if isAdmin();
       allow create: if isValidId(userId) && isOwner(userId) && isValidCustomer(incoming());
       allow update: if isValidId(userId) && (
-        (isOwner(userId) && isValidCustomer(incoming()) && (!('role' in incoming()) || incoming().role == existing().role)) ||
+        (isOwner(userId) && isValidCustomer(incoming()) && (!('role' in incoming()) || incoming().role == existing().role || incoming().role == 'CUSTOMER')) ||
         isAdmin()
       );
       allow delete: if isAdmin() && isValidId(userId);
+
+      // Customer subcollection: Addresses
+      match /addresses/{addressId} {
+        allow get, list, create, update, delete: if isValidId(userId) && isValidId(addressId) && (isOwner(userId) || isAdmin());
+      }
+
+      // Customer subcollection: Cart
+      match /cart/{cartItemId} {
+        allow get, list, create, update, delete: if isValidId(userId) && isValidId(cartItemId) && isOwner(userId);
+      }
+
+      // Customer subcollection: Wishlist
+      match /wishlist/{itemId} {
+        allow get, list, create, update, delete: if isValidId(userId) && isValidId(itemId) && isOwner(userId);
+      }
     }
 
     // ----------------------------------------------------
-    // ADMINS COLLECTION
-    // Only verified admins can manage or inspect admin directory
+    // 5. CUSTOMERS COLLECTION (Customer records)
+    // Protected: customer can only read/manage their own record
     // ----------------------------------------------------
-    match /admins/{adminId} {
-      allow get: if isValidId(adminId) && isAdmin();
+    match /customers/{customerId} {
+      allow get: if isValidId(customerId) && (
+        isOwner(customerId) ||
+        isAdmin() ||
+        (isSignedIn() && resource.data.email == request.auth.token.email)
+      );
       allow list: if isAdmin();
-      allow create, update, delete: if isAdmin() && isValidId(adminId);
+      allow create: if isValidId(customerId) && (
+        isOwner(customerId) ||
+        isAdmin() ||
+        (isSignedIn() && incoming().email == request.auth.token.email)
+      );
+      allow update: if isValidId(customerId) && (
+        isAdmin() ||
+        (isOwner(customerId) && (!('role' in incoming()) || incoming().role == existing().role))
+      );
+      allow delete: if isAdmin() && isValidId(customerId);
     }
 
     // ----------------------------------------------------
-    // SETTINGS COLLECTION
-    // Public read for brand info & policies; Admin only write
-    // ----------------------------------------------------
-    match /settings/{settingId} {
-      allow get: if isValidId(settingId);
-      allow list: if true;
-      allow create, update, delete: if isAdmin() && isValidId(settingId);
-    }
-
-    // ----------------------------------------------------
-    // COUPONS COLLECTION
-    // Public read for discount validation; Admin only manage
+    // 6. COUPONS COLLECTION
+    // Public read for discount validation; Admin-only write
     // ----------------------------------------------------
     match /coupons/{couponId} {
       allow get: if isValidId(couponId);
@@ -173,38 +187,68 @@ service cloud.firestore {
     }
 
     // ----------------------------------------------------
-    // RETURNS COLLECTION
-    // Customer can submit return requests; Admin processes them
+    // 7. RETURNS / EXCHANGES
+    // Customers can view and submit their own requests; Admin approves/updates
     // ----------------------------------------------------
     match /returns/{returnId} {
       allow get: if isValidId(returnId) && (
         isAdmin() ||
-        (isSignedIn() && resource.data.customerEmail == request.auth.token.email)
+        (isSignedIn() && (resource.data.customerEmail == request.auth.token.email || resource.data.customerId == request.auth.uid))
       );
       allow list: if isAdmin() || (
-        isSignedIn() && resource.data.customerEmail == request.auth.token.email
+        isSignedIn() && (resource.data.customerEmail == request.auth.token.email || resource.data.customerId == request.auth.uid)
       );
       allow create: if isValidId(returnId) && isValidReturn(incoming()) && (
         isAdmin() ||
-        (isSignedIn() && incoming().customerEmail == request.auth.token.email)
+        (isSignedIn() && (incoming().customerEmail == request.auth.token.email || incoming().customerId == request.auth.uid))
       );
       allow update: if isAdmin() && isValidId(returnId) && isValidReturn(incoming());
       allow delete: if isAdmin() && isValidId(returnId);
     }
 
     // ----------------------------------------------------
-    // AUDIT LOGS COLLECTION
-    // Audit logs for user actions and access control
+    // 8. SETTINGS COLLECTION (Store branding, policies, delivery fees)
+    // Public read for store metadata; Admin-only write
+    // ----------------------------------------------------
+    match /settings/{settingId} {
+      allow get: if isValidId(settingId);
+      allow list: if true;
+      allow create, update, delete: if isAdmin() && isValidId(settingId);
+    }
+
+    // ----------------------------------------------------
+    // 9. ADMINS DIRECTORY
+    // Strictly Admin-only
+    // ----------------------------------------------------
+    match /admins/{adminId} {
+      allow get, list, create, update, delete: if isAdmin() && isValidId(adminId);
+    }
+
+    // ----------------------------------------------------
+    // 10. AUDIT LOGS
+    // Admin read; client create for event tracking; immutable updates/deletes
     // ----------------------------------------------------
     match /audit_logs/{logId} {
       allow get, list: if isAdmin();
       allow create: if isValidId(logId);
-      allow update, delete: if isAdmin() && isValidId(logId);
+      allow update, delete: if false;
     }
 
     // ----------------------------------------------------
-    // TEST / DIAGNOSTIC CONNECTION
-    // Used by getDocFromServer connection check on boot
+    // 11. OTP & PASSWORD RESET (SERVER-ONLY)
+    // Denied from client SDK; only accessed by backend/Admin SDK
+    // ----------------------------------------------------
+    match /otps/{otpId} {
+      allow read, write: if false;
+    }
+
+    match /password_resets/{resetId} {
+      allow read, write: if false;
+    }
+
+    // ----------------------------------------------------
+    // 12. TEST / HEALTH CHECK
+    // Used by getDocFromServer on application startup
     // ----------------------------------------------------
     match /test/{testId} {
       allow read: if true;

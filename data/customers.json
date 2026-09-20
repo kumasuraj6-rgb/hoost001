@@ -1,5 +1,29 @@
 [
   {
+    "id": "cust-1789897624480",
+    "name": "Suraj Test",
+    "email": "ms0736687@gmail.com",
+    "password": "Password123",
+    "phone": "9876543210",
+    "addresses": [],
+    "totalOrders": 0,
+    "totalSpending": 0,
+    "status": "ACTIVE",
+    "createdAt": "2026-09-20T09:47:04.480Z"
+  },
+  {
+    "id": "cust-1789894160636",
+    "name": "raj kumar",
+    "email": "kumasuraj6@gmail.com",
+    "password": "Ankit@1234",
+    "phone": "7563802611",
+    "addresses": [],
+    "totalOrders": 0,
+    "totalSpending": 0,
+    "status": "ACTIVE",
+    "createdAt": "2026-09-20T08:49:20.636Z"
+  },
+  {
     "id": "cust-0",
     "name": "Vikramaditya Rathore",
     "email": "customer@ridex.com",

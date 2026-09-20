@@ -170,6 +170,10 @@
     "/returns/{returnId}": {
       "schema": "ReturnRequest",
       "description": "Rider returns and warranty claims"
+    },
+    "/customers/{customerId}": {
+      "schema": "Customer",
+      "description": "Customer records for store accounts"
     }
   }
 }

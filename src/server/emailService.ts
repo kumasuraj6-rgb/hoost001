@@ -76,10 +76,15 @@ function getTransporter(): Transporter | null {
   }
 }
 
-export async function sendOtpEmail(toEmail: string, otpCode: string, purpose: 'CUSTOMER_PASSWORD_RESET' | 'ADMIN_PASSKEY_RESET'): Promise<{ sent: boolean; method: string }> {
+export async function sendOtpEmail(
+  toEmail: string,
+  otpCode: string,
+  purpose: 'CUSTOMER_PASSWORD_RESET' | 'ADMIN_PASSKEY_RESET'
+): Promise<{ sent: boolean; method: string; error?: string }> {
   const isCustomer = purpose === 'CUSTOMER_PASSWORD_RESET';
-  const roleName = isCustomer ? 'Rider Account' : 'Administrator Operations Portal';
-  const subject = `[RIDEX] Security Verification Code: ${otpCode}`;
+  const subject = isCustomer
+    ? 'RIDEX - Password Reset Verification Code'
+    : `[RIDEX Admin] Passkey Verification Code: ${otpCode}`;
 
   const html = `
     <!DOCTYPE html>
@@ -90,27 +95,29 @@ export async function sendOtpEmail(toEmail: string, otpCode: string, purpose: 'C
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0c0a09; color: #f5f5f4; margin: 0; padding: 24px; }
           .container { max-width: 520px; margin: 0 auto; background-color: #1c1917; border: 1px solid #292524; border-radius: 16px; padding: 32px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
           .badge { display: inline-block; padding: 4px 12px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 9999px; color: #f59e0b; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
-          h1 { color: #ffffff; font-size: 20px; font-weight: 800; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px; }
-          p { color: #a8a29e; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0; }
+          h1 { color: #ffffff; font-size: 20px; font-weight: 800; margin: 0 0 6px 0; letter-spacing: 0.5px; }
+          .subtitle { color: #f59e0b; font-size: 14px; font-weight: 600; margin-bottom: 18px; }
+          p { color: #a8a29e; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0; }
           .otp-box { background: #0c0a09; border: 2px dashed #f59e0b; border-radius: 12px; padding: 20px; text-align: center; margin: 24px 0; }
-          .otp-code { font-family: monospace; font-size: 32px; font-weight: 900; letter-spacing: 8px; color: #fbbf24; }
-          .footer { border-top: 1px solid #292524; padding-top: 16px; font-size: 11px; color: #78716c; text-align: center; }
-          .warning { color: #ef4444; font-size: 12px; margin-top: 16px; font-weight: 600; }
+          .otp-label { font-size: 12px; color: #a8a29e; margin-bottom: 8px; font-weight: 500; }
+          .otp-code { font-family: monospace; font-size: 36px; font-weight: 900; letter-spacing: 8px; color: #fbbf24; }
+          .footer { border-top: 1px solid #292524; padding-top: 16px; font-size: 11px; color: #78716c; text-align: center; margin-top: 24px; }
+          .warning { color: #a8a29e; font-size: 12px; margin-top: 14px; line-height: 1.5; }
         </style>
       </head>
       <body>
         <div class="container">
-          <div class="badge">RIDEX MOTO SECURITY</div>
-          <h1>Security Verification</h1>
-          <p>You recently requested a security verification code for your <strong>${roleName}</strong> associated with <code>${toEmail}</code>.</p>
+          <div class="badge">RIDEX</div>
+          <h1>RIDEX</h1>
+          <div class="subtitle">Password Reset Verification</div>
           
           <div class="otp-box">
-            <div style="font-size: 11px; color: #78716c; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Your One-Time Passcode</div>
+            <div class="otp-label">Your verification code is:</div>
             <div class="otp-code">${otpCode}</div>
           </div>
 
-          <p>This verification code is strictly valid for <strong>5 minutes</strong>. If you did not initiate this password reset, please secure your account immediately.</p>
-          <div class="warning">Never share this verification code with anyone. RIDEX support will never ask for your security code.</div>
+          <p><strong>This code expires in 10 minutes.</strong></p>
+          <p class="warning">If you did not request a password reset, you can safely ignore this email.</p>
           
           <div class="footer">
             &copy; ${new Date().getFullYear()} RIDEX MOTO Inc. All rights reserved. &bull; Automated Security Protocol
@@ -119,6 +126,8 @@ export async function sendOtpEmail(toEmail: string, otpCode: string, purpose: 'C
       </body>
     </html>
   `;
+
+  const textContent = `RIDEX\nPassword Reset Verification\n\nYour verification code is:\n${otpCode}\n\nThis code expires in 10 minutes.\n\nIf you did not request a password reset, you can safely ignore this email.`;
 
   // 1. Check Resend API
   if (process.env.RESEND_API_KEY) {
@@ -136,6 +145,7 @@ export async function sendOtpEmail(toEmail: string, otpCode: string, purpose: 'C
           to: [toEmail],
           subject,
           html,
+          text: textContent,
         }),
       });
 
@@ -148,9 +158,9 @@ export async function sendOtpEmail(toEmail: string, otpCode: string, purpose: 'C
       let errText = await response.text();
 
       // If invalid 'from' address (422) and not already using the official sandbox sender, retry once with sandbox sender
-      if (response.status === 422 && fromAddress !== 'RIDEX Security <onboarding@resend.dev>') {
+      if (response.status === 422 && fromAddress !== 'RIDEX Support <onboarding@resend.dev>') {
         console.warn(`[EmailService] Resend API rejected sender "${fromAddress}" (422: ${errText}). Retrying with verified sandbox sender...`);
-        fromAddress = 'RIDEX Security <onboarding@resend.dev>';
+        fromAddress = 'RIDEX Support <onboarding@resend.dev>';
         response = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
@@ -162,6 +172,7 @@ export async function sendOtpEmail(toEmail: string, otpCode: string, purpose: 'C
             to: [toEmail],
             subject,
             html,
+            text: textContent,
           }),
         });
 
@@ -174,14 +185,17 @@ export async function sendOtpEmail(toEmail: string, otpCode: string, purpose: 'C
 
       // Handle Resend free-tier sandbox recipient restriction (403)
       if (response.status === 403 && errText.includes('You can only send testing emails')) {
-        console.warn(
-          `[EmailService] Resend Sandbox Restriction: Testing emails can only be delivered to the registered account owner (ms0736687@gmail.com). To deliver to external recipients (${toEmail}), verify a domain at resend.com/domains. Falling back to alternative delivery channels.`
-        );
-      } else {
-        console.warn(`[EmailService] Resend API failed (${response.status}): ${errText}`);
+        const errorMsg = `Resend Sandbox Restriction: Resend sandbox currently restricts deliveries to the verified account owner (ms0736687@gmail.com). To deliver to external recipients (${toEmail}), please verify a custom domain at resend.com/domains and configure EMAIL_FROM.`;
+        console.warn(`[EmailService] ${errorMsg}`);
+        return { sent: false, method: 'resend', error: errorMsg };
       }
-    } catch (err) {
+
+      const safeErrorMsg = `Resend delivery failed (${response.status}): ${errText || 'Check sender and domain verification.'}`;
+      console.warn(`[EmailService] ${safeErrorMsg}`);
+      return { sent: false, method: 'resend', error: safeErrorMsg };
+    } catch (err: any) {
       console.error('[EmailService] Error calling Resend API:', err);
+      return { sent: false, method: 'resend', error: err?.message || 'Network error communicating with Resend API.' };
     }
   }
 
@@ -195,17 +209,20 @@ export async function sendOtpEmail(toEmail: string, otpCode: string, purpose: 'C
         to: toEmail,
         subject,
         html,
-        text: `Your RIDEX security verification code is: ${otpCode}. Valid for 5 minutes.`,
+        text: textContent,
       });
       console.log(`[EmailService] OTP sent to ${toEmail} via SMTP`);
       return { sent: true, method: 'smtp' };
-    } catch (err) {
+    } catch (err: any) {
       console.error('[EmailService] SMTP send error:', err);
+      return { sent: false, method: 'smtp', error: err?.message || 'SMTP delivery failed.' };
     }
   }
 
-  // 3. Fallback server notification
-  const validityMinutes = purpose === 'CUSTOMER_PASSWORD_RESET' ? 10 : 5;
-  console.log(`[EmailService] Security verification OTP generated for ${toEmail} (${purpose}). Code: ${otpCode} (Valid for ${validityMinutes} minutes).`);
-  return { sent: false, method: 'server_logged' };
+  // 3. Neither email provider configured
+  return {
+    sent: false,
+    method: 'none',
+    error: 'Email service is not configured. Please set RESEND_API_KEY in the environment variables.',
+  };
 }
