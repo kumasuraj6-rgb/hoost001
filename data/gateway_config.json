@@ -1,0 +1,12 @@
+{
+  "keyId": "",
+  "keySecret": "",
+  "isEnabled": true,
+  "mode": "TEST",
+  "companyName": "RIDEX MOTO",
+  "themeColor": "#f59e0b",
+  "currency": "INR",
+  "webhookSecret": "",
+  "preferredGateway": "RAZORPAY",
+  "updatedAt": "2026-09-21T13:57:20.426Z"
+}

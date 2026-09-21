@@ -54,8 +54,8 @@ export interface GatewayConfig {
 }
 
 const initialGatewayConfig: GatewayConfig = {
-  keyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_ridex100demo',
-  keySecret: process.env.RAZORPAY_KEY_SECRET || 'secret_ridex100demo',
+  keyId: process.env.RAZORPAY_KEY_ID || '',
+  keySecret: process.env.RAZORPAY_KEY_SECRET || '',
   isEnabled: true,
   mode: (process.env.RAZORPAY_KEY_ID && !process.env.RAZORPAY_KEY_ID.includes('test')) ? 'LIVE' : 'TEST',
   companyName: 'RIDEX MOTO',
@@ -1779,7 +1779,7 @@ export async function handleApiRequest(
     sendJson(res, 200, {
       success: true,
       isEnabled: gatewayConfig.isEnabled,
-      keyId: gatewayConfig.keyId || process.env.RAZORPAY_KEY_ID || 'rzp_test_ridex100demo',
+      keyId: gatewayConfig.keyId || process.env.RAZORPAY_KEY_ID || '',
       mode: gatewayConfig.mode,
       companyName: gatewayConfig.companyName || 'RIDEX MOTO',
       themeColor: gatewayConfig.themeColor || '#f59e0b',
@@ -1913,8 +1913,8 @@ export async function handleApiRequest(
       // Amount in paise (Razorpay standard: ₹100 = 10000 paise)
       const amountInPaise = Math.round(amount * 100);
       const receipt = body.receipt || `receipt_${Date.now()}`;
-      const activeKeyId = gatewayConfig.keyId || process.env.RAZORPAY_KEY_ID || 'rzp_test_ridex100demo';
-      const activeKeySecret = gatewayConfig.keySecret || process.env.RAZORPAY_KEY_SECRET || 'secret_ridex100demo';
+      const activeKeyId = gatewayConfig.keyId || process.env.RAZORPAY_KEY_ID || '';
+      const activeKeySecret = gatewayConfig.keySecret || process.env.RAZORPAY_KEY_SECRET || '';
 
       const isRealKey =
         activeKeyId &&
@@ -1985,7 +1985,7 @@ export async function handleApiRequest(
         paymentMethod = 'UPI',
       } = body;
 
-      const activeSecret = gatewayConfig.keySecret || process.env.RAZORPAY_KEY_SECRET || 'secret_ridex100demo';
+      const activeSecret = gatewayConfig.keySecret || process.env.RAZORPAY_KEY_SECRET || '';
 
       let verified = false;
 

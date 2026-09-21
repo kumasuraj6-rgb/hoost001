@@ -309,7 +309,7 @@ export const CheckoutView: React.FC = () => {
         isOpen: true,
         orderId: orderData.id,
         amount: orderData.amount ? orderData.amount / 100 : cartTotal,
-        keyId: orderData.key || orderData.keyId || 'rzp_test_ridex100demo',
+        keyId: orderData.key || orderData.keyId || '',
         isSimulated: !!orderData.isSimulated,
       });
       setIsProcessing(false);

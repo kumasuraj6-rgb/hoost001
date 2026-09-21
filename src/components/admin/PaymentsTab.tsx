@@ -44,8 +44,8 @@ export const PaymentsTab: React.FC = () => {
   // Gateway Settings State
   const [activeSection, setActiveSection] = useState<'TRANSACTIONS' | 'GATEWAY_CONFIG'>('GATEWAY_CONFIG');
   const [gatewayConfig, setGatewayConfig] = useState<GatewaySettingsState>({
-    keyId: 'rzp_test_ridex100demo',
-    keySecret: 'secret_ridex100demo',
+    keyId: '',
+    keySecret: '',
     isEnabled: true,
     mode: 'TEST',
     preferredGateway: 'RAZORPAY',

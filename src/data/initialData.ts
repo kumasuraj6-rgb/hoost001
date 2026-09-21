@@ -68,8 +68,8 @@ export const initialStoreSettings: StoreSettings = {
 
   paymentGateway: {
     razorpayEnabled: true,
-    razorpayKeyId: 'rzp_test_ridex100demo',
-    razorpayKeySecret: 'secret_ridex100demo',
+    razorpayKeyId: '',
+    razorpayKeySecret: '',
     razorpayMode: 'TEST',
     razorpayWebhookSecret: '',
     preferredGateway: 'RAZORPAY',
