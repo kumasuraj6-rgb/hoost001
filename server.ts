@@ -11,6 +11,16 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+  // Diagnostics: Log all requests hitting Express to diagnose reverse-proxy routing
+  app.use((req, res, next) => {
+    const rawUrl = req.url || '';
+    const origUrl = req.originalUrl || '';
+    if (rawUrl.startsWith('/api') || origUrl.startsWith('/api')) {
+      console.log(`[Express server.ts] Received API Call: ${req.method} url="${rawUrl}" originalUrl="${origUrl}"`);
+    }
+    next();
+  });
+
   // CORS and Cache-Control headers for all API requests
   app.use('/api', (req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');

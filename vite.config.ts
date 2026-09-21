@@ -21,8 +21,17 @@ function apiServerPlugin(): Plugin {
   const middleware = async (req: any, res: any, next: any) => {
     const rawUrl = req.url || '';
     const origUrl = req.originalUrl || '';
-    if (isApiRoute(rawUrl) || isApiRoute(origUrl)) {
-      console.log(`[Vite API Middleware] Intercepted: ${req.method} ${rawUrl} (proxy/orig: ${origUrl || 'none'})`);
+    const method = req.method || 'GET';
+    const isMatched = isApiRoute(rawUrl) || isApiRoute(origUrl);
+
+    if (isMatched) {
+      console.log(`\n------------------ [Vite apiServerPlugin Intercepted] ------------------`);
+      console.log(`Method: ${method}`);
+      console.log(`Exact req.url: "${rawUrl}"`);
+      console.log(`Exact req.originalUrl: "${origUrl}"`);
+      console.log(`Host: "${req.headers?.host || 'unknown'}" | X-Forwarded-For: "${req.headers?.['x-forwarded-for'] || 'none'}"`);
+      console.log(`X-Forwarded-Host: "${req.headers?.['x-forwarded-host'] || 'none'}" | Proto: "${req.headers?.['x-forwarded-proto'] || 'none'}"`);
+      console.log(`------------------------------------------------------------------------`);
       try {
         const handled = await handleApiRequest(req, res);
         if (handled) return;
@@ -35,7 +44,7 @@ function apiServerPlugin(): Plugin {
         }
         return;
       } catch (err: any) {
-        console.error('[Vite API Middleware] Error:', err);
+        console.error('[Vite apiServerPlugin] Error during request handling:', err);
         if (!res.headersSent) {
           res.statusCode = 500;
           res.setHeader('Content-Type', 'application/json');
@@ -45,6 +54,28 @@ function apiServerPlugin(): Plugin {
         return;
       }
     }
+
+    // Diagnostic check: Did a reverse proxy strip the /api prefix before reaching Node/Vite?
+    const looksLikeStrippedApi =
+      /^\/(auth|admin|order|cart|bikes|accessories|payment|review|verify|forgot-password|reset-password)\b/i.test(rawUrl) ||
+      /^\/(auth|admin|order|cart|bikes|accessories|payment|review|verify|forgot-password|reset-password)\b/i.test(origUrl);
+
+    if (looksLikeStrippedApi) {
+      console.warn(`\n[Vite apiServerPlugin ⚠️ WARNING] Potential API request detected WITHOUT '/api/' prefix!`);
+      console.warn(`Hostinger or reverse-proxy might have stripped '/api' during URL rewrite.`);
+      console.warn(`Method: ${method} | req.url: "${rawUrl}" | req.originalUrl: "${origUrl}"`);
+      console.warn(`Attempting recovery: forwarding to handleApiRequest with /api prefix restoration...`);
+      
+      // Attempt to salvage the request by restoring the /api prefix
+      req.url = '/api' + (rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`);
+      try {
+        const handled = await handleApiRequest(req, res);
+        if (handled) return;
+      } catch (recoveryErr) {
+        console.error('[Vite apiServerPlugin] Recovery attempt failed:', recoveryErr);
+      }
+    }
+
     next();
   };
 

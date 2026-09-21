@@ -415,6 +415,7 @@ export async function handleApiRequest(
   res: http.ServerResponse
 ): Promise<boolean> {
   const reqId = ++apiRequestCounter;
+  const timestamp = new Date().toISOString();
   const rawUrl = req.url || '/';
   // Normalize multiple consecutive slashes from reverse proxy path joining (e.g. /api//auth -> /api/auth)
   const normalizedUrl = rawUrl.replace(/\/+/g, '/');
@@ -425,19 +426,25 @@ export async function handleApiRequest(
   }
   const method = (req.method || 'GET').toUpperCase();
 
-  // Extract reverse-proxy diagnostics from Hostinger Apache/LiteSpeed/Nginx headers
-  const clientIp =
-    (req.headers['x-forwarded-for'] as string) ||
-    (req.headers['x-real-ip'] as string) ||
-    req.socket.remoteAddress ||
-    'unknown';
-  const proxyHost = req.headers['x-forwarded-host'] || req.headers.host || 'unknown';
-  const proxyProto = req.headers['x-forwarded-proto'] || 'http';
-  const userAgent = (req.headers['user-agent'] as string) || 'unknown';
+  // Sanitize headers for logging (mask authorization token if present)
+  const sanitizedHeaders: Record<string, any> = {};
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (key.toLowerCase() === 'authorization') {
+      const valStr = String(value);
+      sanitizedHeaders[key] = valStr.startsWith('Bearer ')
+        ? `Bearer ${valStr.slice(7, 13)}...[masked]`
+        : '[masked]';
+    } else {
+      sanitizedHeaders[key] = value;
+    }
+  }
 
-  console.log(`\n[Node API REQ #${reqId}] ──▶ Incoming: ${method} ${pathname}`);
-  console.log(`[Node API REQ #${reqId}] Client: ${clientIp} | Host: ${proxyHost} | Proto: ${proxyProto}`);
-  console.log(`[Node API REQ #${reqId}] Raw: "${rawUrl}" | Clean: "${normalizedUrl}" | UA: "${userAgent.slice(0, 40)}"`);
+  // Detailed server-side logging for incoming requests
+  console.log(`\n================== [Node API REQ #${reqId} | ${timestamp}] ==================`);
+  console.log(`Path: ${pathname} | Method: ${method} | Raw URL: "${rawUrl}"`);
+  console.log(`Parsed Pathname: "${parsedUrl.pathname}" | Query: "${parsedUrl.search}"`);
+  console.log(`Headers:\n${JSON.stringify(sanitizedHeaders, null, 2)}`);
+  console.log(`======================================================================`);
 
   if (pathname === '/api') {
     console.log(`[Node API REQ #${reqId}] ──✔ Route matched: Gateway info`);
