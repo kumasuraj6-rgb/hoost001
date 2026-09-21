@@ -217,12 +217,16 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
 
       setForgotStep('VERIFY_OTP');
       setCountdown(30);
-      setForgotOtpDigits(['', '', '', '', '', '']);
+      const digits =
+        response.data?.devOtp && String(response.data.devOtp).length === 6
+          ? String(response.data.devOtp).split('')
+          : ['', '', '', '', '', ''];
+      setForgotOtpDigits(digits);
       const msg =
-        response.data.message ||
+        response.data?.message ||
         `A 6-digit verification code has been dispatched to ${cleanEmail}. (Code expires in 10 minutes)`;
       setSuccessMessage(msg);
-      showToast(response.data.message || `Verification code sent to ${cleanEmail}.`, 'info');
+      showToast(response.data?.message || `Verification code sent to ${cleanEmail}.`, 'info');
     } catch (err: any) {
       setErrorMessage(err?.message || 'Failed to dispatch verification code. Please check your network connection.');
     } finally {

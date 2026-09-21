@@ -7,8 +7,8 @@ export function getApiBaseUrl(): string {
   // Support custom backend URL when frontend is deployed statically (e.g. Hostinger SPA)
   // while backend is running on Cloud Run, VPS, or separate domain.
   const envUrl = (
-    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
-    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) ||
+    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_URL) ||
+    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_BASE_URL) ||
     ''
   ).trim();
 

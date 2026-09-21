@@ -5,24 +5,43 @@ import {defineConfig, Plugin} from 'vite';
 import {handleApiRequest} from './src/server/apiHandler';
 
 function apiServerPlugin(): Plugin {
+  const isApiRoute = (u: string) => {
+    if (!u || typeof u !== 'string') return false;
+    const clean = u.trim().replace(/\/+/g, '/');
+    if (clean.startsWith('/api/') || clean === '/api' || clean.startsWith('/api?')) return true;
+    try {
+      const parsed = new URL(clean, 'http://localhost:3000');
+      const p = parsed.pathname.replace(/\/+/g, '/');
+      return p.startsWith('/api/') || p === '/api' || p.startsWith('/api?');
+    } catch {
+      return false;
+    }
+  };
+
   const middleware = async (req: any, res: any, next: any) => {
-    const url = req.url || '';
-    if (url.startsWith('/api/') || url === '/api' || url.startsWith('/api?')) {
+    const rawUrl = req.url || '';
+    const origUrl = req.originalUrl || '';
+    if (isApiRoute(rawUrl) || isApiRoute(origUrl)) {
+      console.log(`[Vite API Middleware] Intercepted: ${req.method} ${rawUrl} (proxy/orig: ${origUrl || 'none'})`);
       try {
         const handled = await handleApiRequest(req, res);
         if (handled) return;
         // Never fall through to Vite SPA html fallback for /api routes
-        res.statusCode = 404;
-        res.setHeader('Content-Type', 'application/json');
-        res.setHeader('Cache-Control', 'no-store');
-        res.end(JSON.stringify({ success: false, error: `API endpoint ${url} not found` }));
+        if (!res.headersSent) {
+          res.statusCode = 404;
+          res.setHeader('Content-Type', 'application/json');
+          res.setHeader('Cache-Control', 'no-store');
+          res.end(JSON.stringify({ success: false, error: `API endpoint ${rawUrl || origUrl} not found` }));
+        }
         return;
       } catch (err: any) {
-        console.error('API middleware error:', err);
-        res.statusCode = 500;
-        res.setHeader('Content-Type', 'application/json');
-        res.setHeader('Cache-Control', 'no-store');
-        res.end(JSON.stringify({ success: false, error: err?.message || 'Internal API error' }));
+        console.error('[Vite API Middleware] Error:', err);
+        if (!res.headersSent) {
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.setHeader('Cache-Control', 'no-store');
+          res.end(JSON.stringify({ success: false, error: err?.message || 'Internal API error' }));
+        }
         return;
       }
     }

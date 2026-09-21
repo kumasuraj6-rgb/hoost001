@@ -15,7 +15,7 @@
     "id": "cust-1789894160636",
     "name": "raj kumar",
     "email": "kumasuraj6@gmail.com",
-    "password": "Ankit@1234",
+    "password": "pbkdf2$0e58fb48eaeba6de77f081c16d35bf1f$70ed379bb96b285e5b65ab12045285616f6bcd1407a00c5550d556a13f5993340c91e845f54860da8b02ee107a2373dbe98d30a65e4b58e9351d2606fd2721ce",
     "phone": "7563802611",
     "addresses": [],
     "totalOrders": 0,
